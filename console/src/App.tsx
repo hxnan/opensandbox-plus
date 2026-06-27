@@ -75,11 +75,13 @@ import {
   signinRedirect,
   signoutRedirect
 } from "./auth";
+import landingHeroUrl from "./assets/landing-hero.png";
 import logoUrl from "./assets/opensandbox-plus-logo.svg";
 
 const { Header, Content, Sider } = Layout;
 
 type ViewKey =
+  | "home"
   | "overview"
   | "credentials"
   | "users"
@@ -104,6 +106,7 @@ type AuthState = {
 };
 
 const menuItems: MenuProps["items"] = [
+  { key: "home", icon: <DashboardOutlined />, label: "首页" },
   { key: "overview", icon: <DashboardOutlined />, label: "概览" },
   { key: "credentials", icon: <KeyOutlined />, label: "凭据" },
   { key: "users", icon: <UserOutlined />, label: "用户" },
@@ -116,7 +119,7 @@ const menuItems: MenuProps["items"] = [
 ];
 
 export default function App() {
-  const [view, setView] = useState<ViewKey>("overview");
+  const [view, setView] = useState<ViewKey>("home");
   const [manualToken, setManualToken] = useLocalStorage("osb-plus-console-token", "");
   const [cloudKey, setCloudKey] = useLocalStorage("osb-plus-cloud-key", "");
   const [oidcSession, setOidcSession] = useState<OidcSession | null>(null);
@@ -217,7 +220,7 @@ export default function App() {
           <Typography.Text strong>单服务 MVP 控制面</Typography.Text>
           <AuthToolbar auth={auth} />
         </Header>
-        <Content className="content">{renderView(view, auth)}</Content>
+        <Content className="content">{renderView(view, auth, setView)}</Content>
       </Layout>
     </Layout>
   );
@@ -277,8 +280,14 @@ function AuthToolbar({ auth }: { auth: AuthState }) {
   );
 }
 
-function renderView(view: ViewKey, auth: AuthState) {
+function renderView(
+  view: ViewKey,
+  auth: AuthState,
+  setView: (view: ViewKey) => void
+) {
   switch (view) {
+    case "home":
+      return <LandingPage auth={auth} onNavigate={setView} />;
     case "credentials":
       return <CredentialsPage auth={auth} />;
     case "users":
@@ -298,6 +307,51 @@ function renderView(view: ViewKey, auth: AuthState) {
     default:
       return <OverviewPage auth={auth} />;
   }
+}
+
+function LandingPage({
+  auth,
+  onNavigate
+}: {
+  auth: AuthState;
+  onNavigate: (view: ViewKey) => void;
+}) {
+  return (
+    <section className="landing-screen">
+      <img src={landingHeroUrl} alt="" className="landing-hero-image" />
+      <div className="landing-overlay" />
+      <div className="landing-content">
+        <img src={logoUrl} alt="OpenSandbox Plus" className="landing-logo" />
+        <Typography.Title level={1}>OpenSandbox Plus</Typography.Title>
+        <Typography.Paragraph className="landing-copy">
+          面向 Agent 的企业级云沙箱控制平面，兼容 OpenSandbox 原生 API，统一管理凭据、
+          多集群、镜像分发和 ACK/K8s 部署计划。
+        </Typography.Paragraph>
+        <Space size={12} wrap>
+          <Button type="primary" size="large" onClick={() => onNavigate("overview")}>
+            进入控制台
+          </Button>
+          <Button size="large" onClick={() => void auth.signIn()}>
+            登录体验
+          </Button>
+        </Space>
+        <div className="landing-metrics">
+          <div>
+            <strong>100%</strong>
+            <span>兼容 OpenSandbox API</span>
+          </div>
+          <div>
+            <strong>多集群</strong>
+            <span>纳管云上与自建运行时</span>
+          </div>
+          <div>
+            <strong>凭据自治</strong>
+            <span>Agent 登录后按需申请 token</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function OverviewPage({ auth }: { auth: AuthState }) {
