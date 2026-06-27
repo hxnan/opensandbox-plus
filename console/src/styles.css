@@ -6,6 +6,16 @@ body,
   margin: 0;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --app-header-height: 80px;
+}
+
 body {
   font-family:
     Inter,
@@ -26,21 +36,25 @@ body {
 }
 
 .brand {
-  height: 88px;
+  height: var(--app-header-height);
   display: flex;
   align-items: center;
-  padding: 12px 18px;
+  padding: 12px 34px;
+  background: #fff;
+  border-bottom: 1px solid #e7e9ee;
 }
 
 .brand-logo {
   display: block;
   width: 100%;
-  max-width: 196px;
+  max-width: 204px;
   height: auto;
 }
 
 .topbar {
-  min-height: 56px;
+  height: var(--app-header-height);
+  min-height: var(--app-header-height);
+  line-height: normal;
   padding: 0 24px;
   background: #fff;
   border-bottom: 1px solid #e7e9ee;
