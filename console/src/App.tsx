@@ -90,6 +90,7 @@ type ViewKey =
   | "clusters"
   | "ackDeployments"
   | "images"
+  | "imageDistributions"
   | "quotas"
   | "audit";
 
@@ -124,7 +125,15 @@ const consoleMenuItems: MenuProps["items"] = [
       { key: "ackDeployments", label: "ACK/K8s 接入" }
     ]
   },
-  { key: "images", icon: <SyncOutlined />, label: "镜像" },
+  {
+    key: "imageManagement",
+    icon: <SyncOutlined />,
+    label: "镜像",
+    children: [
+      { key: "images", label: "镜像目录" },
+      { key: "imageDistributions", label: "分发状态" }
+    ]
+  },
   { key: "quotas", icon: <SyncOutlined />, label: "配额" },
   { key: "audit", icon: <AuditOutlined />, label: "审计" }
 ];
@@ -225,7 +234,7 @@ export default function App() {
         <Menu
           mode="inline"
           selectedKeys={[view]}
-          defaultOpenKeys={["clusterManagement"]}
+          defaultOpenKeys={["clusterManagement", "imageManagement"]}
           items={menuItems}
           onClick={(item) => setView(item.key as ViewKey)}
         />
@@ -301,7 +310,9 @@ function renderView(
     case "ackDeployments":
       return <ClustersPage auth={auth} activeTab="ack" />;
     case "images":
-      return <ImagesPage auth={auth} />;
+      return <ImagesPage auth={auth} activeTab="images" />;
+    case "imageDistributions":
+      return <ImagesPage auth={auth} activeTab="distributions" />;
     case "quotas":
       return <QuotasPage auth={auth} />;
     case "audit":
@@ -1340,10 +1351,18 @@ function ClustersPage({ auth, activeTab }: { auth: AuthState; activeTab: "cluste
   );
 }
 
-function ImagesPage({ auth }: { auth: AuthState }) {
+function ImagesPage({
+  auth,
+  activeTab
+}: {
+  auth: AuthState;
+  activeTab: "images" | "distributions";
+}) {
   const [images, setImages] = useState<SandboxImage[]>([]);
   const [distributions, setDistributions] = useState<ImageDistribution[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const [imageForm] = Form.useForm();
   const [uploadForm] = Form.useForm();
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -1393,6 +1412,7 @@ function ImagesPage({ auth }: { auth: AuthState }) {
       message.success(`已上传并生成 ${result.distributions.length} 条分发计划`);
       uploadForm.resetFields();
       setUploadFile(null);
+      setUploadModalOpen(false);
       await load();
     } catch (err) {
       message.error(errorText(err));
@@ -1418,6 +1438,7 @@ function ImagesPage({ auth }: { auth: AuthState }) {
         }
       });
       imageForm.resetFields();
+      setRegisterModalOpen(false);
       await load();
     } catch (err) {
       message.error(errorText(err));
@@ -1441,145 +1462,229 @@ function ImagesPage({ auth }: { auth: AuthState }) {
 
   return (
     <Space direction="vertical" size={16} className="stack">
-      <SectionHeader title="OpenSandbox 镜像" onRefresh={load} loading={loading} />
-      <Card size="small" title="上传镜像并自动分发">
-        <Form form={uploadForm} layout="inline" onFinish={uploadImage}>
-          <Form.Item name="name" rules={[{ required: true }]} className="inline-form-item">
-            <Input placeholder="镜像名称" />
-          </Form.Item>
-          <Form.Item name="version" rules={[{ required: true }]} className="inline-form-item">
-            <Input placeholder="版本" />
-          </Form.Item>
-          <Form.Item name="architecture" initialValue="amd64" className="inline-form-item">
-            <Input placeholder="架构" />
-          </Form.Item>
-          <Form.Item name="risk_level" initialValue="low" className="inline-form-item">
-            <Select
-              options={[
-                { value: "low", label: "low" },
-                { value: "medium", label: "medium" },
-                { value: "high", label: "high" }
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="status" initialValue="active" className="inline-form-item">
-            <Select
-              options={[
-                { value: "active", label: "active" },
-                { value: "draft", label: "draft" },
-                { value: "disabled", label: "disabled" }
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="description" className="wide-form-item">
-            <Input placeholder="描述" />
-          </Form.Item>
-          <Form.Item className="wide-form-item">
-            <input
-              className="file-input"
-              type="file"
-              onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
-            />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" icon={<SyncOutlined />} disabled={!uploadFile}>
-              上传并分发
-            </Button>
-          </Form.Item>
-        </Form>
-      </Card>
-      <Card size="small" title="登记镜像">
-        <Form form={imageForm} layout="inline" onFinish={createImage}>
-          <Form.Item name="name" rules={[{ required: true }]} className="inline-form-item">
-            <Input placeholder="镜像名称" />
-          </Form.Item>
-          <Form.Item name="version" rules={[{ required: true }]} className="inline-form-item">
-            <Input placeholder="版本" />
-          </Form.Item>
-          <Form.Item name="source_type" initialValue="manual_upload" className="inline-form-item">
-            <Select
-              options={[
-                { value: "manual_upload", label: "manual_upload" },
-                { value: "external_registry", label: "external_registry" }
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="source_uri" className="wide-form-item">
-            <Input placeholder="上传文件或外部镜像 URI" />
-          </Form.Item>
-          <Form.Item name="architecture" initialValue="amd64" className="inline-form-item">
-            <Input placeholder="架构" />
-          </Form.Item>
-          <Form.Item name="risk_level" initialValue="low" className="inline-form-item">
-            <Select
-              options={[
-                { value: "low", label: "low" },
-                { value: "medium", label: "medium" },
-                { value: "high", label: "high" }
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="status" initialValue="draft" className="inline-form-item">
-            <Select
-              options={[
-                { value: "draft", label: "draft" },
-                { value: "active", label: "active" },
-                { value: "disabled", label: "disabled" }
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="description" className="wide-form-item">
-            <Input placeholder="描述" />
-          </Form.Item>
-          <Form.Item name="metadata" className="wide-form-item">
-            <Input placeholder="metadata JSON" />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" icon={<PlusOutlined />}>
-              登记镜像
-            </Button>
-          </Form.Item>
-        </Form>
-      </Card>
-      <Table<SandboxImage>
-        size="small"
-        rowKey="id"
-        loading={loading}
-        dataSource={images}
-        columns={[
-          { title: "镜像", render: (_, row) => `${row.name}:${row.version}` },
-          { title: "来源", dataIndex: "source_type" },
-          { title: "URI", dataIndex: "source_uri", ellipsis: true, render: valueOrDash },
-          { title: "架构", dataIndex: "architecture" },
-          { title: "风险", dataIndex: "risk_level", render: (value: string) => <StatusTag value={value} /> },
-          { title: "状态", dataIndex: "status", render: (value: string) => <StatusTag value={value} /> },
-          { title: "更新时间", dataIndex: "updated_at", render: formatTime },
-          {
-            title: "操作",
-            width: 116,
-            render: (_, row) => (
-              <Button size="small" icon={<SyncOutlined />} onClick={() => void syncImage(row.id)}>
-                分发
+      {activeTab === "images" ? (
+        <>
+          <SectionHeader title="OpenSandbox 镜像目录" onRefresh={load} loading={loading} />
+          <div className="table-actions">
+            <Space wrap>
+              <Button
+                icon={<PlusOutlined />}
+                onClick={() => {
+                  imageForm.resetFields();
+                  imageForm.setFieldsValue({
+                    source_type: "manual_upload",
+                    architecture: "amd64",
+                    risk_level: "low",
+                    status: "draft"
+                  });
+                  setRegisterModalOpen(true);
+                }}
+              >
+                登记镜像
               </Button>
-            )
-          }
-        ]}
-      />
-      <Table<ImageDistribution>
-        size="small"
-        rowKey="id"
-        loading={loading}
-        dataSource={distributions}
-        columns={[
-          { title: "Image ID", dataIndex: "image_id", ellipsis: true },
-          { title: "集群", dataIndex: "runtime_backend_id", ellipsis: true },
-          { title: "目标", dataIndex: "target_ref", ellipsis: true, render: valueOrDash },
-          { title: "状态", dataIndex: "status", render: (value: string) => <StatusTag value={value} /> },
-          { title: "重试", dataIndex: "retry_count", width: 72 },
-          { title: "同步时间", dataIndex: "last_synced_at", render: formatTime },
-          { title: "错误", dataIndex: "last_error", ellipsis: true, render: valueOrDash }
-        ]}
-      />
+              <Button
+                type="primary"
+                icon={<SyncOutlined />}
+                onClick={() => {
+                  uploadForm.resetFields();
+                  uploadForm.setFieldsValue({
+                    architecture: "amd64",
+                    risk_level: "low",
+                    status: "active"
+                  });
+                  setUploadFile(null);
+                  setUploadModalOpen(true);
+                }}
+              >
+                上传并分发
+              </Button>
+            </Space>
+          </div>
+          <Table<SandboxImage>
+            size="small"
+            rowKey="id"
+            loading={loading}
+            dataSource={images}
+            columns={[
+              { title: "镜像", render: (_, row) => `${row.name}:${row.version}` },
+              { title: "来源", dataIndex: "source_type" },
+              { title: "URI", dataIndex: "source_uri", ellipsis: true, render: valueOrDash },
+              { title: "架构", dataIndex: "architecture" },
+              { title: "风险", dataIndex: "risk_level", render: (value: string) => <StatusTag value={value} /> },
+              { title: "状态", dataIndex: "status", render: (value: string) => <StatusTag value={value} /> },
+              { title: "更新时间", dataIndex: "updated_at", render: formatTime },
+              {
+                title: "操作",
+                width: 116,
+                render: (_, row) => (
+                  <Button size="small" icon={<SyncOutlined />} onClick={() => void syncImage(row.id)}>
+                    分发
+                  </Button>
+                )
+              }
+            ]}
+          />
+        </>
+      ) : (
+        <>
+          <SectionHeader title="镜像分发状态" onRefresh={load} loading={loading} />
+          <Table<ImageDistribution>
+            size="small"
+            rowKey="id"
+            loading={loading}
+            dataSource={distributions}
+            columns={[
+              { title: "Image ID", dataIndex: "image_id", ellipsis: true },
+              { title: "集群", dataIndex: "runtime_backend_id", ellipsis: true },
+              { title: "目标", dataIndex: "target_ref", ellipsis: true, render: valueOrDash },
+              { title: "状态", dataIndex: "status", render: (value: string) => <StatusTag value={value} /> },
+              { title: "重试", dataIndex: "retry_count", width: 72 },
+              { title: "同步时间", dataIndex: "last_synced_at", render: formatTime },
+              { title: "错误", dataIndex: "last_error", ellipsis: true, render: valueOrDash }
+            ]}
+          />
+        </>
+      )}
+      <Modal
+        title="上传镜像并自动分发"
+        open={uploadModalOpen}
+        onCancel={() => setUploadModalOpen(false)}
+        onOk={() => uploadForm.submit()}
+        okButtonProps={{ disabled: !uploadFile }}
+        okText="上传并分发"
+        width={760}
+      >
+        <Form form={uploadForm} layout="vertical" onFinish={uploadImage}>
+          <Row gutter={12}>
+            <Col xs={24} md={12}>
+              <Form.Item name="name" label="镜像名称" rules={[{ required: true }]}>
+                <Input placeholder="镜像名称" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="version" label="版本" rules={[{ required: true }]}>
+                <Input placeholder="版本" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="architecture" label="架构" initialValue="amd64">
+                <Input placeholder="架构" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="risk_level" label="风险等级" initialValue="low">
+                <Select
+                  options={[
+                    { value: "low", label: "low" },
+                    { value: "medium", label: "medium" },
+                    { value: "high", label: "high" }
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="status" label="状态" initialValue="active">
+                <Select
+                  options={[
+                    { value: "active", label: "active" },
+                    { value: "draft", label: "draft" },
+                    { value: "disabled", label: "disabled" }
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item label="镜像文件" required>
+                <input
+                  className="file-input"
+                  type="file"
+                  onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={24}>
+              <Form.Item name="description" label="描述">
+                <Input placeholder="描述" />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Modal>
+      <Modal
+        title="登记镜像"
+        open={registerModalOpen}
+        onCancel={() => setRegisterModalOpen(false)}
+        onOk={() => imageForm.submit()}
+        okText="登记镜像"
+        width={760}
+      >
+        <Form form={imageForm} layout="vertical" onFinish={createImage}>
+          <Row gutter={12}>
+            <Col xs={24} md={12}>
+              <Form.Item name="name" label="镜像名称" rules={[{ required: true }]}>
+                <Input placeholder="镜像名称" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="version" label="版本" rules={[{ required: true }]}>
+                <Input placeholder="版本" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="source_type" label="来源类型" initialValue="manual_upload">
+                <Select
+                  options={[
+                    { value: "manual_upload", label: "manual_upload" },
+                    { value: "external_registry", label: "external_registry" }
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="source_uri" label="镜像 URI">
+                <Input placeholder="上传文件或外部镜像 URI" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="architecture" label="架构" initialValue="amd64">
+                <Input placeholder="架构" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="risk_level" label="风险等级" initialValue="low">
+                <Select
+                  options={[
+                    { value: "low", label: "low" },
+                    { value: "medium", label: "medium" },
+                    { value: "high", label: "high" }
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="status" label="状态" initialValue="draft">
+                <Select
+                  options={[
+                    { value: "draft", label: "draft" },
+                    { value: "active", label: "active" },
+                    { value: "disabled", label: "disabled" }
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="metadata" label="metadata JSON">
+                <Input placeholder="metadata JSON" />
+              </Form.Item>
+            </Col>
+            <Col span={24}>
+              <Form.Item name="description" label="描述">
+                <Input placeholder="描述" />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Modal>
     </Space>
   );
 }
