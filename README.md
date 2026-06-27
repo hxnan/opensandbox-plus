@@ -83,7 +83,18 @@ Default local values:
 - `VITE_CASDOOR_CLIENT_ID=osb-console`
 - `VITE_CASDOOR_REDIRECT_URI=http://localhost:5173/` for Vite dev, `http://localhost:8080/` for compose
 
-The Console still keeps a manual Bearer token override for MVP debugging.
+The Console now uses Casdoor OIDC as the management-plane login path. Personal cloud sandbox
+keys are issued from the credential page and are used for OpenSandbox-compatible API access.
+
+## Production Configuration Baseline
+
+`OSB_PLUS_DEPLOYMENT_ENV` defaults to `development` for the local docker-compose stack. When it is
+set to `production`, startup configuration validation rejects weak local defaults:
+
+- `OSB_PLUS_PUBLIC_BASE_URL` and `OSB_PLUS_CASDOOR_ISSUER` must use `https://`.
+- `OSB_PLUS_CREDENTIAL_SECRET_PEPPER` must be replaced with a strong random secret.
+- `OSB_PLUS_OPENSANDBOX_INTERNAL_API_KEY` must be replaced with a strong internal key.
+- `OSB_PLUS_CASDOOR_ADMIN_CLIENT_SECRET`, when configured, must not use a weak default.
 
 Casdoor local setup is documented in `deploy/casdoor/README.md`. The docker-compose stack mounts
 `deploy/casdoor/init_data.json` into Casdoor, seeding the `osb-console` application plus

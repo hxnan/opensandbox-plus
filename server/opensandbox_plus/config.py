@@ -3,10 +3,20 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 AppRole = Literal["all", "api", "worker"]
+DeploymentEnv = Literal["development", "staging", "production"]
+
+_WEAK_SECRET_VALUES = {
+    "",
+    "change-me",
+    "change-me-credential-pepper",
+    "change-me-internal-opensandbox-key",
+    "dev-change-me",
+    "secret",
+}
 
 
 class Settings(BaseSettings):
@@ -16,6 +26,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    deployment_env: DeploymentEnv = "development"
     app_role: AppRole = "all"
     public_base_url: str = "http://localhost:8080"
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:8080"])
@@ -47,6 +58,34 @@ class Settings(BaseSettings):
     opensandbox_default_backend_name: str = "local-opensandbox"
     opensandbox_default_backend_base_url: str = "http://opensandbox:8090"
     opensandbox_internal_api_key: str = "change-me"
+
+    @model_validator(mode="after")
+    def validate_production_baseline(self) -> "Settings":
+        if self.deployment_env != "production":
+            return self
+
+        errors: list[str] = []
+        if self.public_base_url.startswith("http://"):
+            errors.append("OSB_PLUS_PUBLIC_BASE_URL must use https in production")
+        if self.casdoor_issuer.startswith("http://"):
+            errors.append("OSB_PLUS_CASDOOR_ISSUER must use https in production")
+        if _is_weak_secret(self.credential_secret_pepper):
+            errors.append("OSB_PLUS_CREDENTIAL_SECRET_PEPPER must be a strong production secret")
+        if _is_weak_secret(self.opensandbox_internal_api_key):
+            errors.append("OSB_PLUS_OPENSANDBOX_INTERNAL_API_KEY must be a strong production secret")
+        if self.casdoor_admin_client_secret is not None and _is_weak_secret(
+            self.casdoor_admin_client_secret
+        ):
+            errors.append("OSB_PLUS_CASDOOR_ADMIN_CLIENT_SECRET must not use a weak default")
+
+        if errors:
+            raise ValueError("; ".join(errors))
+        return self
+
+
+def _is_weak_secret(value: str | None) -> bool:
+    normalized = (value or "").strip().lower()
+    return normalized in _WEAK_SECRET_VALUES or len(normalized) < 32
 
 
 @lru_cache

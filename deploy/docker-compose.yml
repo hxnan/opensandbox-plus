@@ -37,6 +37,7 @@ services:
         VITE_CASDOOR_POST_LOGOUT_REDIRECT_URI: http://localhost:8080/
         VITE_CASDOOR_SCOPE: "openid profile email"
     environment:
+      OSB_PLUS_DEPLOYMENT_ENV: development
       OSB_PLUS_APP_ROLE: all
       OSB_PLUS_PUBLIC_BASE_URL: http://localhost:8080
       OSB_PLUS_DATABASE_URL: postgresql+asyncpg://opensandbox_plus:opensandbox_plus@postgres:5432/opensandbox_plus
