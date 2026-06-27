@@ -1,7 +1,6 @@
-<svg width="1942" height="809" viewBox="0 0 1942 809" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+<svg width="1735" height="400" viewBox="120 190 1735 400" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">OpenSandbox Plus logo</title>
   <desc id="desc">OpenSandbox Plus wordmark with an open cloud, a sandbox hexagon cluster, and three compact keys for multi-credential access.</desc>
-  <rect width="1942" height="809" fill="#ffffff"/>
 
   <defs>
     <linearGradient id="cloudStroke" x1="148" y1="365" x2="660" y2="365" gradientUnits="userSpaceOnUse">

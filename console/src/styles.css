@@ -39,7 +39,7 @@ body {
   height: var(--app-header-height);
   display: flex;
   align-items: center;
-  padding: 12px 34px;
+  padding: 10px 24px;
   background: #fff;
   border-bottom: 1px solid #e7e9ee;
 }
@@ -47,7 +47,7 @@ body {
 .brand-logo {
   display: block;
   width: 100%;
-  max-width: 204px;
+  max-width: 232px;
   height: auto;
 }
 
