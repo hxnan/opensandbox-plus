@@ -105,8 +105,12 @@ type AuthState = {
   forgetOidcSession: () => Promise<void>;
 };
 
-const menuItems: MenuProps["items"] = [
+const publicMenuItems: MenuProps["items"] = [
   { key: "home", icon: <DashboardOutlined />, label: "首页" },
+];
+
+const consoleMenuItems: MenuProps["items"] = [
+  ...publicMenuItems,
   { key: "overview", icon: <DashboardOutlined />, label: "概览" },
   { key: "credentials", icon: <KeyOutlined />, label: "凭据" },
   { key: "users", icon: <UserOutlined />, label: "用户" },
@@ -202,6 +206,14 @@ export default function App() {
     ]
   );
 
+  const menuItems = auth.token ? consoleMenuItems : publicMenuItems;
+
+  useEffect(() => {
+    if (!auth.token && view !== "home") {
+      setView("home");
+    }
+  }, [auth.token, view]);
+
   return (
     <Layout className="app-shell">
       <Sider width={232} theme="light" className="sidebar">
@@ -217,7 +229,7 @@ export default function App() {
       </Sider>
       <Layout>
         <Header className="topbar">
-          <Typography.Text strong>单服务 MVP 控制面</Typography.Text>
+          <Typography.Text strong>企业级沙箱接入管理服务</Typography.Text>
           <AuthToolbar auth={auth} />
         </Header>
         <Content className="content">{renderView(view, auth, setView)}</Content>
@@ -327,6 +339,15 @@ function LandingPage({
           面向 Agent 的企业级云沙箱控制平面，兼容 OpenSandbox 原生 API，统一管理凭据、
           多集群、镜像分发和 ACK/K8s 部署计划。
         </Typography.Paragraph>
+        {!auth.token ? (
+          <Alert
+            className="landing-login-alert"
+            type="info"
+            showIcon
+            message="请先登录后使用控制台功能"
+            description="登录后将开放概览、凭据、用户、沙箱、平台、集群、镜像、配额和审计等管理入口。"
+          />
+        ) : null}
         <Space size={12} wrap>
           <Button type="primary" size="large" onClick={() => onNavigate("overview")}>
             进入控制台
