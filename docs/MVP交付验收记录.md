@@ -113,8 +113,10 @@ MVP 暂不包含以下能力：
 
 | 能力 | 当前处理 |
 | --- | --- |
-| Kubernetes 部署 | 暂用 docker-compose，后续可把单体服务拆为 API/Worker 并迁移到 k8s |
+| 生产级部署体系 | 暂用 docker-compose，后续优先补齐生产基线、集群管理、镜像管理和可观测能力 |
 | 完整可观测平台 | 暂不接入 Prometheus/Grafana/Tracing，仅在管理面获取当前最新平台状态 |
+| 多 OpenSandbox 集群管理 | MVP 先接入单 OpenSandbox backend，后续支持多集群注册、健康检查、容量状态和调度策略 |
+| OpenSandbox 镜像管理 | MVP 暂不提供镜像上传和分发，后续支持手动上传镜像并自动推送到各 OpenSandbox 集群镜像仓库 |
 | 多租户管理员 | 已从方案中移除，只保留平台管理员和 Agent 用户 |
 | Console 生产级权限配置 UI | 先提供基础页面和 API 能力，后续按运营需求增强 |
 | 高级配额策略 | 已保留配额模型和接口，先覆盖默认配额与管理员调整 |
@@ -122,9 +124,10 @@ MVP 暂不包含以下能力：
 
 ## 后续升级方向
 
-1. 将 `opensandbox-plus` 单服务拆分为 API、Worker、Scheduler 等分布式组件。
-2. 将 docker-compose 部署升级为 k8s Helm/Kustomize。
-3. 引入 Prometheus 指标、结构化日志、Trace 和告警。
-4. 补齐 OpenSandbox 原生 API 的长尾接口兼容。
-5. 增强 Console 的运营视图、筛选、批量操作和风险提示。
-6. 增加真实外部 Casdoor/OIDC 环境的部署手册与验收脚本。
+1. 补齐生产基线：CI、生产配置手册、安全基线、运行手册和可重复验收脚本。
+2. 增加多 OpenSandbox 集群管理：集群注册、健康检查、容量状态、调度策略和故障切换。
+3. 增加 OpenSandbox 镜像管理：手动上传镜像、镜像仓库配置、自动推送到各集群、同步状态和失败重试。
+4. 引入 Prometheus 指标、结构化日志、Trace 和告警。
+5. 补齐 OpenSandbox 原生 API 的长尾接口兼容。
+6. 增强 Console 的运营视图、筛选、批量操作、集群视图、镜像视图和风险提示。
+7. 增加真实外部 Casdoor/OIDC 环境的部署手册与验收脚本。

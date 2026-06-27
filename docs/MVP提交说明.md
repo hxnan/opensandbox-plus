@@ -43,7 +43,7 @@ feat: deliver opensandbox plus mvp control plane
 
 ## Notes
 
-- MVP deploys with docker-compose; k8s is intentionally deferred.
+- MVP deploys with docker-compose; next-stage work focuses on production baseline, multi-OpenSandbox cluster management, image management, and observability.
 - Observability is limited to current platform status in the management plane.
 - Tenant admin is intentionally removed from the role model.
 - Local Casdoor seed enables password grant only for automated verification.
