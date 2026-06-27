@@ -349,8 +349,12 @@ function LandingPage({
           />
         ) : null}
         <Space size={12} wrap>
-          <Button type="primary" size="large" onClick={() => onNavigate("overview")}>
-            进入控制台
+          <Button
+            type="primary"
+            size="large"
+            onClick={() => (auth.token ? onNavigate("overview") : void auth.signIn())}
+          >
+            {auth.token ? "进入控制台" : "登录后进入控制台"}
           </Button>
           <Button size="large" onClick={() => void auth.signIn()}>
             登录体验
