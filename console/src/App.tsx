@@ -4,6 +4,7 @@ import {
   CopyOutlined,
   DashboardOutlined,
   DeleteOutlined,
+  EyeOutlined,
   KeyOutlined,
   LoginOutlined,
   LogoutOutlined,
@@ -592,14 +593,26 @@ function CredentialsPage({ auth }: { auth: AuthState }) {
                 <Button
                   size="small"
                   icon={<StopOutlined />}
-                  onClick={() => void mutateCredential(row.id, "disable")}
+                  onClick={() =>
+                    confirmDanger(
+                      "确认禁用凭据",
+                      `禁用后凭据 ${row.public_prefix} 将无法继续访问云沙箱。`,
+                      () => mutateCredential(row.id, "disable")
+                    )
+                  }
                 >
                   禁用
                 </Button>
                 <Button
                   size="small"
                   icon={<SyncOutlined />}
-                  onClick={() => void mutateCredential(row.id, "rotate")}
+                  onClick={() =>
+                    confirmDanger(
+                      "确认轮换凭据",
+                      `轮换后凭据 ${row.public_prefix} 的旧 key 将立即失效。`,
+                      () => mutateCredential(row.id, "rotate")
+                    )
+                  }
                 >
                   轮换
                 </Button>
@@ -607,7 +620,13 @@ function CredentialsPage({ auth }: { auth: AuthState }) {
                   size="small"
                   danger
                   icon={<DeleteOutlined />}
-                  onClick={() => void mutateCredential(row.id, "delete")}
+                  onClick={() =>
+                    confirmDanger(
+                      "确认删除凭据",
+                      `删除后凭据 ${row.public_prefix} 将不可恢复。`,
+                      () => mutateCredential(row.id, "delete")
+                    )
+                  }
                 />
               </Space>
             )
@@ -817,7 +836,13 @@ function UsersPage({ auth }: { auth: AuthState }) {
                   size="small"
                   icon={<StopOutlined />}
                   disabled={row.status !== "active"}
-                  onClick={() => void disableAdminCredential(row.id)}
+                  onClick={() =>
+                    confirmDanger(
+                      "确认禁用用户凭据",
+                      `禁用后凭据 ${row.public_prefix} 将无法继续访问云沙箱。`,
+                      () => disableAdminCredential(row.id)
+                    )
+                  }
                 >
                   禁用
                 </Button>
@@ -923,7 +948,13 @@ function SandboxesPage({ auth }: { auth: AuthState }) {
                 size="small"
                 danger
                 icon={<DeleteOutlined />}
-                onClick={() => void deleteSandbox(sandboxId(row))}
+                onClick={() =>
+                  confirmDanger(
+                    "确认删除沙箱",
+                    `将删除沙箱 ${sandboxId(row)}，运行中的任务可能中断。`,
+                    () => deleteSandbox(sandboxId(row))
+                  )
+                }
               />
             )
           }
@@ -1813,6 +1844,8 @@ function AuditPage({ auth }: { auth: AuthState }) {
   const [items, setItems] = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<Record<string, string>>({});
+  const [selectedAudit, setSelectedAudit] = useState<AuditEvent | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [form] = Form.useForm();
 
   const load = useCallback(async () => {
@@ -1834,6 +1867,23 @@ function AuditPage({ auth }: { auth: AuthState }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function openAuditDetail(id: number) {
+    setDetailLoading(true);
+    try {
+      const detail = await apiRequest<AuditEvent>(
+        `/api/v1/admin/audit-events/${encodeURIComponent(String(id))}`,
+        {
+          token: auth.token
+        }
+      );
+      setSelectedAudit(detail);
+    } catch (err) {
+      message.error(errorText(err));
+    } finally {
+      setDetailLoading(false);
+    }
+  }
 
   if (!auth.token) return <MissingToken />;
 
@@ -1878,11 +1928,6 @@ function AuditPage({ auth }: { auth: AuthState }) {
         rowKey="id"
         loading={loading}
         dataSource={items}
-        expandable={{
-          expandedRowRender: (row) => (
-            <pre className="json-block">{JSON.stringify(row.payload ?? {}, null, 2)}</pre>
-          )
-        }}
         columns={[
           { title: "时间", dataIndex: "created_at", render: formatTime },
           { title: "Action", dataIndex: "action" },
@@ -1895,9 +1940,54 @@ function AuditPage({ auth }: { auth: AuthState }) {
           { title: "Credential", dataIndex: "credential_id", ellipsis: true },
           { title: "Resource", render: (_, row) => `${row.resource_type}:${row.resource_id ?? "-"}` },
           { title: "Error", dataIndex: "error_code", render: valueOrDash },
-          { title: "Request", dataIndex: "request_id", ellipsis: true }
+          { title: "Request", dataIndex: "request_id", ellipsis: true },
+          {
+            title: "操作",
+            width: 88,
+            render: (_, row) => (
+              <Button
+                size="small"
+                icon={<EyeOutlined />}
+                loading={detailLoading && selectedAudit?.id === row.id}
+                onClick={() => void openAuditDetail(row.id)}
+              >
+                详情
+              </Button>
+            )
+          }
         ]}
       />
+      <Modal
+        title={selectedAudit ? `审计详情 #${selectedAudit.id}` : "审计详情"}
+        open={selectedAudit !== null}
+        onCancel={() => setSelectedAudit(null)}
+        footer={null}
+        width={920}
+      >
+        {selectedAudit ? (
+          <Space direction="vertical" size={16} className="stack">
+            <Descriptions size="small" column={1} bordered>
+              <Descriptions.Item label="时间">{formatTime(selectedAudit.created_at)}</Descriptions.Item>
+              <Descriptions.Item label="Request ID">
+                <Typography.Text copyable>{selectedAudit.request_id}</Typography.Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Action">{selectedAudit.action}</Descriptions.Item>
+              <Descriptions.Item label="Decision">
+                <DecisionTag value={selectedAudit.decision} />
+              </Descriptions.Item>
+              <Descriptions.Item label="Actor">{selectedAudit.actor_subject_id ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Credential">{selectedAudit.credential_id ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Resource">
+                {selectedAudit.resource_type}:{selectedAudit.resource_id ?? "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="IP">{selectedAudit.ip ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="User Agent">{selectedAudit.user_agent ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Error">{selectedAudit.error_code ?? "-"}</Descriptions.Item>
+            </Descriptions>
+            <pre className="json-block">{JSON.stringify(selectedAudit.payload ?? {}, null, 2)}</pre>
+          </Space>
+        ) : null}
+      </Modal>
     </Space>
   );
 }
@@ -1997,6 +2087,17 @@ function StatusTag({ value }: { value: string }) {
 function DecisionTag({ value }: { value: AuditEvent["decision"] }) {
   const color = value === "allow" ? "green" : value === "deny" ? "orange" : "red";
   return <Tag color={color}>{value}</Tag>;
+}
+
+function confirmDanger(title: string, content: string, action: () => Promise<void>) {
+  Modal.confirm({
+    title,
+    content,
+    okText: "确认",
+    cancelText: "取消",
+    okButtonProps: { danger: true },
+    onOk: action
+  });
 }
 
 function useLocalStorage(key: string, initialValue: string) {

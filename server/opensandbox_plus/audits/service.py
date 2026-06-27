@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from opensandbox_plus.audits.repository import (
     AuditDecision,
     create_audit_event,
+    get_audit_event as get_audit_event_from_db,
     list_audit_events as list_audit_events_from_db,
 )
 from opensandbox_plus.db.models import AuditEvent
@@ -96,6 +97,14 @@ async def list_audit_events(
         page=page,
         page_size=page_size,
     )
+
+
+async def get_audit_event(
+    session: AsyncSession,
+    *,
+    event_id: int,
+) -> AuditEvent | None:
+    return await get_audit_event_from_db(session, event_id=event_id)
 
 
 def audit_event_to_dict(event: AuditEvent) -> dict[str, Any]:

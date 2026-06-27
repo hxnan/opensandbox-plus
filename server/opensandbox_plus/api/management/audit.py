@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from opensandbox_plus.api.dependencies import require_platform_admin
 from opensandbox_plus.api.management.schemas import AuditDecision, AuditEventResponse, Page
-from opensandbox_plus.audits.service import audit_event_to_dict, list_audit_events
+from opensandbox_plus.audits.service import audit_event_to_dict, get_audit_event, list_audit_events
 from opensandbox_plus.auth.principal import Principal
 from opensandbox_plus.db.models import AuditEvent
 from opensandbox_plus.db.session import get_session
@@ -49,3 +49,18 @@ async def get_audit_events(
 
 def _audit_event_response(event: AuditEvent) -> AuditEventResponse:
     return AuditEventResponse(**audit_event_to_dict(event))
+
+
+@router.get("/{event_id}", response_model=AuditEventResponse)
+async def get_audit_event_detail(
+    event_id: int,
+    _: Annotated[Principal, Depends(require_platform_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AuditEventResponse:
+    event = await get_audit_event(session, event_id=event_id)
+    if event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "NOT_FOUND", "message": "audit event not found"},
+        )
+    return _audit_event_response(event)

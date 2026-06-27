@@ -84,3 +84,11 @@ async def list_audit_events(
     rows = await session.scalars(stmt)
     total = int(await session.scalar(count_stmt) or 0)
     return list(rows), total
+
+
+async def get_audit_event(
+    session: AsyncSession,
+    *,
+    event_id: int,
+) -> AuditEvent | None:
+    return await session.get(AuditEvent, event_id)
