@@ -127,6 +127,16 @@ async def list_ack_deployments(
     return list(rows), total
 
 
+async def get_ack_deployment(
+    session: AsyncSession,
+    *,
+    deployment_id: str,
+) -> AckClusterDeployment | None:
+    return await session.scalar(
+        select(AckClusterDeployment).where(AckClusterDeployment.id == deployment_id)
+    )
+
+
 async def upsert_ack_deployment(
     session: AsyncSession,
     *,

@@ -18,6 +18,7 @@ from opensandbox_plus.clusters.service import (
     ClusterServiceError,
     ack_deployment_to_dict,
     cluster_to_dict,
+    generate_ack_deployment_plan,
     list_ack_deployments,
     list_clusters,
     save_ack_deployment,
@@ -157,6 +158,22 @@ async def post_ack_deployment(
             kubeconfig_secret_ref=payload.kubeconfig_secret_ref,
             precheck_payload=payload.precheck_payload,
             deployment_payload=payload.deployment_payload,
+        )
+    except ClusterServiceError as exc:
+        raise _service_http_error(exc) from exc
+    return AckDeploymentResponse(**ack_deployment_to_dict(deployment))
+
+
+@router.post("/ack-deployments/{deployment_id}/plan", response_model=AckDeploymentResponse)
+async def post_ack_deployment_plan(
+    deployment_id: str,
+    _: Annotated[Principal, Depends(require_platform_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AckDeploymentResponse:
+    try:
+        deployment = await generate_ack_deployment_plan(
+            session,
+            deployment_id=deployment_id,
         )
     except ClusterServiceError as exc:
         raise _service_http_error(exc) from exc

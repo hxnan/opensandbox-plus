@@ -1006,6 +1006,22 @@ function ClustersPage({ auth }: { auth: AuthState }) {
     }
   }
 
+  async function generateAckPlan(deploymentId: string) {
+    try {
+      const planned = await apiRequest<AckDeployment>(
+        `/api/v1/admin/ack-deployments/${encodeURIComponent(deploymentId)}/plan`,
+        { method: "POST", token: auth.token }
+      );
+      const manifests = Array.isArray(planned.deployment_payload?.manifests)
+        ? planned.deployment_payload.manifests.length
+        : 0;
+      message.success(`已生成 ${manifests} 个 Kubernetes manifest`);
+      await load();
+    } catch (err) {
+      message.error(errorText(err));
+    }
+  }
+
   if (!auth.token) return <MissingToken />;
 
   return (
@@ -1144,7 +1160,16 @@ function ClustersPage({ auth }: { auth: AuthState }) {
           { title: "命名空间", dataIndex: "namespace" },
           { title: "状态", dataIndex: "status", render: (value: string) => <StatusTag value={value} /> },
           { title: "错误", dataIndex: "last_error", ellipsis: true, render: valueOrDash },
-          { title: "更新时间", dataIndex: "updated_at", render: formatTime }
+          { title: "更新时间", dataIndex: "updated_at", render: formatTime },
+          {
+            title: "操作",
+            width: 116,
+            render: (_, row) => (
+              <Button size="small" icon={<SyncOutlined />} onClick={() => void generateAckPlan(row.id)}>
+                生成计划
+              </Button>
+            )
+          }
         ]}
       />
     </Space>

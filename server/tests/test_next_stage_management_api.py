@@ -75,6 +75,28 @@ async def test_next_stage_admin_cluster_image_and_ack_routes(
             updated_at=now,
         )
 
+    async def fake_generate_ack_deployment_plan(session, *, deployment_id: str):
+        assert deployment_id == "ackdep_1"
+        return SimpleNamespace(
+            id="ackdep_1",
+            runtime_backend_id="cluster_ack",
+            aliyun_cluster_id="ack-prod-1",
+            region="cn-hangzhou",
+            namespace="opensandbox",
+            vpc_id="vpc-prod",
+            registry_url="registry.cn-hangzhou.aliyuncs.com/osb",
+            kubeconfig_secret_ref="secret/ack-prod-kubeconfig",
+            status="ready",
+            precheck_payload={"storageClass": "alicloud-disk-essd"},
+            deployment_payload={
+                "kind": "opensandbox-suite-deployment-plan",
+                "manifests": [{"kind": "Namespace"}],
+            },
+            last_error=None,
+            created_at=now,
+            updated_at=now,
+        )
+
     async def fake_save_image(session, **kwargs):
         assert kwargs["created_by_subject_id"] == admin.subject_id
         return _image(now, **kwargs)
@@ -101,6 +123,11 @@ async def test_next_stage_admin_cluster_image_and_ack_routes(
     monkeypatch.setattr(cluster_routes, "save_cluster", fake_save_cluster)
     monkeypatch.setattr(cluster_routes, "list_clusters", fake_list_clusters)
     monkeypatch.setattr(cluster_routes, "save_ack_deployment", fake_save_ack_deployment)
+    monkeypatch.setattr(
+        cluster_routes,
+        "generate_ack_deployment_plan",
+        fake_generate_ack_deployment_plan,
+    )
     monkeypatch.setattr(image_routes, "save_image", fake_save_image)
     monkeypatch.setattr(image_routes, "create_distribution_plan", fake_create_distribution_plan)
 
@@ -154,6 +181,14 @@ async def test_next_stage_admin_cluster_image_and_ack_routes(
         )
         assert deployment.status_code == 200
         assert deployment.json()["status"] == "draft"
+
+        deployment_plan = await client.post(
+            "/api/v1/admin/ack-deployments/ackdep_1/plan",
+            headers={"Authorization": "Bearer admin-token"},
+        )
+        assert deployment_plan.status_code == 200
+        assert deployment_plan.json()["status"] == "ready"
+        assert deployment_plan.json()["deployment_payload"]["manifests"][0]["kind"] == "Namespace"
 
         image = await client.post(
             "/api/v1/admin/images",
