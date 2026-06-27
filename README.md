@@ -29,6 +29,8 @@ The enterprise production-readiness roadmap is in `docs/企业级生产就绪演
 
 The next-stage implementation log is in `docs/下一阶段实施记录.md`.
 
+The API error-code and OpenAPI contract note is in `docs/API错误码与OpenAPI.md`.
+
 ## Local Skeleton Checks
 
 ```powershell

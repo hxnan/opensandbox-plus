@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from opensandbox_plus.api.casdoor_static import router as casdoor_static_router
+from opensandbox_plus.api.errors import configure_error_contract
 from opensandbox_plus.api.health import router as health_router
 from opensandbox_plus.api.management import router as management_router
 from opensandbox_plus.api.middleware import RequestIdMiddleware
@@ -40,6 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = settings
+    configure_error_contract(app)
 
     app.add_middleware(RequestIdMiddleware)
     app.add_middleware(

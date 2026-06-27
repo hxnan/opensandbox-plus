@@ -28,12 +28,30 @@ from opensandbox_plus.sandboxes.service import (
 router = APIRouter()
 
 
-@router.api_route("/v1/sandboxes", methods=["POST", "GET"])
-@router.api_route("/sandboxes", methods=["POST", "GET"])
-async def sandboxes_root(
+@router.post("/v1/sandboxes")
+@router.post("/sandboxes", include_in_schema=False)
+async def create_sandbox(
     request: Request,
     principal: CloudSandboxPrincipal = Depends(get_cloud_sandbox_principal),
     session: AsyncSession = Depends(get_session),
+) -> Response:
+    return await _sandboxes_root(request, principal=principal, session=session)
+
+
+@router.get("/v1/sandboxes")
+@router.get("/sandboxes", include_in_schema=False)
+async def list_sandboxes(
+    request: Request,
+    principal: CloudSandboxPrincipal = Depends(get_cloud_sandbox_principal),
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    return await _sandboxes_root(request, principal=principal, session=session)
+
+
+async def _sandboxes_root(
+    request: Request,
+    principal: CloudSandboxPrincipal,
+    session: AsyncSession,
 ) -> Response:
     client = OpenSandboxClient(request.app.state.settings)
     if request.method == "POST":
@@ -137,13 +155,33 @@ async def sandboxes_root(
     return _backend_response(response, payload)
 
 
-@router.api_route("/v1/sandboxes/{sandbox_id}", methods=["GET", "DELETE"])
-@router.api_route("/sandboxes/{sandbox_id}", methods=["GET", "DELETE"])
-async def sandbox_by_id(
+@router.get("/v1/sandboxes/{sandbox_id}")
+@router.get("/sandboxes/{sandbox_id}", include_in_schema=False)
+async def get_sandbox_by_id(
     request: Request,
     sandbox_id: str,
     principal: CloudSandboxPrincipal = Depends(get_cloud_sandbox_principal),
     session: AsyncSession = Depends(get_session),
+) -> Response:
+    return await _sandbox_by_id(request, sandbox_id, principal=principal, session=session)
+
+
+@router.delete("/v1/sandboxes/{sandbox_id}")
+@router.delete("/sandboxes/{sandbox_id}", include_in_schema=False)
+async def delete_sandbox_by_id(
+    request: Request,
+    sandbox_id: str,
+    principal: CloudSandboxPrincipal = Depends(get_cloud_sandbox_principal),
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    return await _sandbox_by_id(request, sandbox_id, principal=principal, session=session)
+
+
+async def _sandbox_by_id(
+    request: Request,
+    sandbox_id: str,
+    principal: CloudSandboxPrincipal,
+    session: AsyncSession,
 ) -> Response:
     action = "sandbox.delete" if request.method == "DELETE" else "sandbox.get"
     try:
@@ -332,18 +370,22 @@ async def get_endpoint(
 @router.api_route(
     "/v1/sandboxes/{sandbox_id}/proxy/{port}/{full_path:path}",
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+    include_in_schema=False,
 )
 @router.api_route(
     "/v1/sandboxes/{sandbox_id}/proxy/{port}",
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+    include_in_schema=False,
 )
 @router.api_route(
     "/sandboxes/{sandbox_id}/proxy/{port}/{full_path:path}",
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+    include_in_schema=False,
 )
 @router.api_route(
     "/sandboxes/{sandbox_id}/proxy/{port}",
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+    include_in_schema=False,
 )
 async def proxy_sandbox(
     request: Request,

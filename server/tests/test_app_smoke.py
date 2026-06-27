@@ -51,3 +51,41 @@ async def test_casdoor_static_assets_are_served_locally() -> None:
     assert flag_response.headers["content-type"].startswith("image/svg+xml")
     assert manifest_response.status_code == 200
     assert manifest_response.json()["name"] == "OpenSandbox Plus Console"
+
+
+@pytest.mark.asyncio
+async def test_error_response_includes_code_and_request_id() -> None:
+    app = create_app(Settings(background_jobs_enabled=False))
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/api/v1/me", headers={"X-Request-ID": "req-error-test"})
+
+    assert response.status_code == 401
+    assert response.headers["X-Request-ID"] == "req-error-test"
+    assert response.json() == {
+        "detail": {
+            "code": "UNAUTHENTICATED",
+            "message": "missing Authorization header",
+            "request_id": "req-error-test",
+        }
+    }
+
+
+@pytest.mark.asyncio
+async def test_openapi_exports_common_error_schema() -> None:
+    app = create_app(Settings(background_jobs_enabled=False))
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/openapi.json")
+
+    assert response.status_code == 200
+    schema = response.json()
+    assert "ErrorResponse" in schema["components"]["schemas"]
+    assert (
+        schema["paths"]["/api/v1/me"]["get"]["responses"]["401"]["content"]["application/json"][
+            "schema"
+        ]["$ref"]
+        == "#/components/schemas/ErrorResponse"
+    )
