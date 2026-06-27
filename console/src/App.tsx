@@ -44,15 +44,18 @@ import {
   ApiError,
   type AdminCredentialSummary,
   type AdminUserSummary,
+  type AckDeployment,
   type AuditEvent,
   type CredentialSummary,
   type CurrentUser,
+  type ImageDistribution,
   type IssuedCredential,
   type Page,
   type PlatformStatus,
   type QuotaRule,
   type RuntimeBackend,
   type SandboxRecord,
+  type SandboxImage,
   type UsageStatus,
   apiRequest,
   normalizeSandboxList,
@@ -71,6 +74,7 @@ import {
   signinRedirect,
   signoutRedirect
 } from "./auth";
+import logoUrl from "./assets/opensandbox-plus-logo.svg";
 
 const { Header, Content, Sider } = Layout;
 
@@ -80,6 +84,8 @@ type ViewKey =
   | "users"
   | "sandboxes"
   | "platform"
+  | "clusters"
+  | "images"
   | "quotas"
   | "audit";
 
@@ -102,6 +108,8 @@ const menuItems: MenuProps["items"] = [
   { key: "users", icon: <UserOutlined />, label: "用户" },
   { key: "sandboxes", icon: <CloudServerOutlined />, label: "沙箱" },
   { key: "platform", icon: <SafetyCertificateOutlined />, label: "平台" },
+  { key: "clusters", icon: <CloudServerOutlined />, label: "集群" },
+  { key: "images", icon: <SyncOutlined />, label: "镜像" },
   { key: "quotas", icon: <SyncOutlined />, label: "配额" },
   { key: "audit", icon: <AuditOutlined />, label: "审计" }
 ];
@@ -193,7 +201,9 @@ export default function App() {
   return (
     <Layout className="app-shell">
       <Sider width={232} theme="light" className="sidebar">
-        <div className="brand">OpenSandbox Plus</div>
+        <div className="brand">
+          <img src={logoUrl} alt="OpenSandbox Plus" className="brand-logo" />
+        </div>
         <Menu
           mode="inline"
           selectedKeys={[view]}
@@ -276,6 +286,10 @@ function renderView(view: ViewKey, auth: AuthState) {
       return <SandboxesPage auth={auth} />;
     case "platform":
       return <PlatformPage auth={auth} />;
+    case "clusters":
+      return <ClustersPage auth={auth} />;
+    case "images":
+      return <ImagesPage auth={auth} />;
     case "quotas":
       return <QuotasPage auth={auth} />;
     case "audit":
@@ -901,6 +915,413 @@ function PlatformPage({ auth }: { auth: AuthState }) {
   );
 }
 
+function ClustersPage({ auth }: { auth: AuthState }) {
+  const [clusters, setClusters] = useState<RuntimeBackend[]>([]);
+  const [ackDeployments, setAckDeployments] = useState<AckDeployment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [clusterForm] = Form.useForm();
+  const [ackForm] = Form.useForm();
+
+  const load = useCallback(async () => {
+    if (!auth.token) return;
+    setLoading(true);
+    try {
+      const [clusterPage, ackPage] = await Promise.all([
+        apiRequest<Page<RuntimeBackend>>("/api/v1/admin/clusters", {
+          token: auth.token,
+          query: { page_size: 100 }
+        }),
+        apiRequest<Page<AckDeployment>>("/api/v1/admin/ack-deployments", {
+          token: auth.token,
+          query: { page_size: 100 }
+        })
+      ]);
+      setClusters(clusterPage.items);
+      setAckDeployments(ackPage.items);
+    } catch (err) {
+      message.error(errorText(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [auth.token]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function saveCluster(values: Record<string, unknown>) {
+    const clusterId = String(values.id || "").trim();
+    const path = clusterId
+      ? `/api/v1/admin/clusters/${encodeURIComponent(clusterId)}`
+      : "/api/v1/admin/clusters";
+    try {
+      await apiRequest<RuntimeBackend>(path, {
+        method: clusterId ? "PUT" : "POST",
+        token: auth.token,
+        body: {
+          name: values.name,
+          region: values.region || null,
+          kind: values.kind || "kubernetes",
+          status: values.status || "active",
+          provider: values.provider || null,
+          external_cluster_id: values.external_cluster_id || null,
+          namespace: values.namespace || null,
+          registry_url: values.registry_url || null,
+          kubeconfig_secret_ref: values.kubeconfig_secret_ref || null,
+          opensandbox_base_url: values.opensandbox_base_url,
+          api_key_env: values.api_key_env,
+          weight: values.weight ?? 100,
+          metadata: parseJsonObject(values.metadata)
+        }
+      });
+      clusterForm.resetFields();
+      await load();
+    } catch (err) {
+      message.error(errorText(err));
+    }
+  }
+
+  async function saveAckDeployment(values: Record<string, unknown>) {
+    try {
+      await apiRequest<AckDeployment>("/api/v1/admin/ack-deployments", {
+        method: "POST",
+        token: auth.token,
+        body: {
+          runtime_backend_id: values.runtime_backend_id || null,
+          aliyun_cluster_id: values.aliyun_cluster_id,
+          region: values.region,
+          namespace: values.namespace || "opensandbox",
+          vpc_id: values.vpc_id || null,
+          registry_url: values.registry_url || null,
+          kubeconfig_secret_ref: values.kubeconfig_secret_ref || null,
+          precheck_payload: parseJsonObject(values.precheck_payload),
+          deployment_payload: parseJsonObject(values.deployment_payload)
+        }
+      });
+      ackForm.resetFields();
+      await load();
+    } catch (err) {
+      message.error(errorText(err));
+    }
+  }
+
+  if (!auth.token) return <MissingToken />;
+
+  return (
+    <Space direction="vertical" size={16} className="stack">
+      <SectionHeader title="OpenSandbox 集群" onRefresh={load} loading={loading} />
+      <Card size="small" title="注册 / 更新集群">
+        <Form form={clusterForm} layout="inline" onFinish={saveCluster}>
+          <Form.Item name="id" className="inline-form-item">
+            <Input placeholder="集群 ID，可选" />
+          </Form.Item>
+          <Form.Item name="name" rules={[{ required: true }]} className="inline-form-item">
+            <Input placeholder="名称" />
+          </Form.Item>
+          <Form.Item name="kind" initialValue="kubernetes" className="inline-form-item">
+            <Select
+              options={[
+                { value: "kubernetes", label: "kubernetes" },
+                { value: "docker", label: "docker" },
+                { value: "remote", label: "remote" }
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="provider" initialValue="aliyun_ack" className="inline-form-item">
+            <Input placeholder="Provider" />
+          </Form.Item>
+          <Form.Item name="external_cluster_id" className="inline-form-item">
+            <Input placeholder="ACK/K8s 集群 ID" />
+          </Form.Item>
+          <Form.Item name="region" className="inline-form-item">
+            <Input placeholder="地域" />
+          </Form.Item>
+          <Form.Item name="namespace" initialValue="opensandbox" className="inline-form-item">
+            <Input placeholder="命名空间" />
+          </Form.Item>
+          <Form.Item name="registry_url" className="wide-form-item">
+            <Input placeholder="镜像仓库地址" />
+          </Form.Item>
+          <Form.Item name="kubeconfig_secret_ref" className="wide-form-item">
+            <Input placeholder="kubeconfig secret ref" />
+          </Form.Item>
+          <Form.Item
+            name="opensandbox_base_url"
+            rules={[{ required: true }]}
+            className="wide-form-item"
+          >
+            <Input placeholder="OpenSandbox URL" />
+          </Form.Item>
+          <Form.Item name="api_key_env" rules={[{ required: true }]} className="inline-form-item">
+            <Input placeholder="API key env" />
+          </Form.Item>
+          <Form.Item name="weight" initialValue={100} className="inline-form-item">
+            <InputNumber min={0} placeholder="权重" />
+          </Form.Item>
+          <Form.Item name="metadata" className="wide-form-item">
+            <Input placeholder='metadata JSON，例如 {"tier":"prod"}' />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" icon={<PlusOutlined />}>
+              保存集群
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
+      <Table<RuntimeBackend>
+        size="small"
+        rowKey="id"
+        loading={loading}
+        dataSource={clusters}
+        columns={[
+          { title: "名称", dataIndex: "name" },
+          { title: "Provider", dataIndex: "provider", render: valueOrDash },
+          { title: "外部 ID", dataIndex: "external_cluster_id", ellipsis: true, render: valueOrDash },
+          { title: "地域", dataIndex: "region", render: valueOrDash },
+          { title: "命名空间", dataIndex: "namespace", render: valueOrDash },
+          { title: "仓库", dataIndex: "registry_url", ellipsis: true, render: valueOrDash },
+          { title: "权重", dataIndex: "weight", width: 80 },
+          { title: "状态", dataIndex: "status", width: 96, render: (value: string) => <StatusTag value={value} /> },
+          { title: "健康", dataIndex: "health_status", width: 104, render: (value: string) => <StatusTag value={value} /> },
+          {
+            title: "操作",
+            width: 88,
+            render: (_, row) => (
+              <Button size="small" onClick={() => clusterForm.setFieldsValue(formValuesFromCluster(row))}>
+                编辑
+              </Button>
+            )
+          }
+        ]}
+      />
+      <Card size="small" title="ACK/K8s 接入记录">
+        <Form form={ackForm} layout="inline" onFinish={saveAckDeployment}>
+          <Form.Item name="runtime_backend_id" className="inline-form-item">
+            <Select
+              allowClear
+              placeholder="纳管集群"
+              options={clusters.map((cluster) => ({ value: cluster.id, label: cluster.name }))}
+            />
+          </Form.Item>
+          <Form.Item name="aliyun_cluster_id" rules={[{ required: true }]} className="inline-form-item">
+            <Input placeholder="ACK 集群 ID" />
+          </Form.Item>
+          <Form.Item name="region" rules={[{ required: true }]} className="inline-form-item">
+            <Input placeholder="地域" />
+          </Form.Item>
+          <Form.Item name="namespace" initialValue="opensandbox" className="inline-form-item">
+            <Input placeholder="命名空间" />
+          </Form.Item>
+          <Form.Item name="vpc_id" className="inline-form-item">
+            <Input placeholder="VPC" />
+          </Form.Item>
+          <Form.Item name="registry_url" className="wide-form-item">
+            <Input placeholder="镜像仓库" />
+          </Form.Item>
+          <Form.Item name="kubeconfig_secret_ref" className="wide-form-item">
+            <Input placeholder="kubeconfig secret ref" />
+          </Form.Item>
+          <Form.Item name="precheck_payload" className="wide-form-item">
+            <Input placeholder="预检 JSON" />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" icon={<PlusOutlined />}>
+              记录接入
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
+      <Table<AckDeployment>
+        size="small"
+        rowKey="id"
+        loading={loading}
+        dataSource={ackDeployments}
+        columns={[
+          { title: "ACK ID", dataIndex: "aliyun_cluster_id" },
+          { title: "纳管集群", dataIndex: "runtime_backend_id", render: valueOrDash },
+          { title: "地域", dataIndex: "region" },
+          { title: "命名空间", dataIndex: "namespace" },
+          { title: "状态", dataIndex: "status", render: (value: string) => <StatusTag value={value} /> },
+          { title: "错误", dataIndex: "last_error", ellipsis: true, render: valueOrDash },
+          { title: "更新时间", dataIndex: "updated_at", render: formatTime }
+        ]}
+      />
+    </Space>
+  );
+}
+
+function ImagesPage({ auth }: { auth: AuthState }) {
+  const [images, setImages] = useState<SandboxImage[]>([]);
+  const [distributions, setDistributions] = useState<ImageDistribution[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [imageForm] = Form.useForm();
+
+  const load = useCallback(async () => {
+    if (!auth.token) return;
+    setLoading(true);
+    try {
+      const [imagePage, distributionPage] = await Promise.all([
+        apiRequest<Page<SandboxImage>>("/api/v1/admin/images", {
+          token: auth.token,
+          query: { page_size: 100 }
+        }),
+        apiRequest<Page<ImageDistribution>>("/api/v1/admin/image-distributions", {
+          token: auth.token,
+          query: { page_size: 100 }
+        })
+      ]);
+      setImages(imagePage.items);
+      setDistributions(distributionPage.items);
+    } catch (err) {
+      message.error(errorText(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [auth.token]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function createImage(values: Record<string, unknown>) {
+    try {
+      await apiRequest<SandboxImage>("/api/v1/admin/images", {
+        method: "POST",
+        token: auth.token,
+        body: {
+          name: values.name,
+          version: values.version,
+          source_type: values.source_type || "manual_upload",
+          source_uri: values.source_uri || null,
+          architecture: values.architecture || "amd64",
+          runtime_profile_id: values.runtime_profile_id || null,
+          risk_level: values.risk_level || "low",
+          status: values.status || "draft",
+          description: values.description || null,
+          metadata: parseJsonObject(values.metadata)
+        }
+      });
+      imageForm.resetFields();
+      await load();
+    } catch (err) {
+      message.error(errorText(err));
+    }
+  }
+
+  async function syncImage(imageId: string) {
+    try {
+      const synced = await apiRequest<ImageDistribution[]>(
+        `/api/v1/admin/images/${encodeURIComponent(imageId)}/distributions:sync`,
+        { method: "POST", token: auth.token }
+      );
+      message.success(`已生成 ${synced.length} 条分发计划`);
+      await load();
+    } catch (err) {
+      message.error(errorText(err));
+    }
+  }
+
+  if (!auth.token) return <MissingToken />;
+
+  return (
+    <Space direction="vertical" size={16} className="stack">
+      <SectionHeader title="OpenSandbox 镜像" onRefresh={load} loading={loading} />
+      <Card size="small" title="登记镜像">
+        <Form form={imageForm} layout="inline" onFinish={createImage}>
+          <Form.Item name="name" rules={[{ required: true }]} className="inline-form-item">
+            <Input placeholder="镜像名称" />
+          </Form.Item>
+          <Form.Item name="version" rules={[{ required: true }]} className="inline-form-item">
+            <Input placeholder="版本" />
+          </Form.Item>
+          <Form.Item name="source_type" initialValue="manual_upload" className="inline-form-item">
+            <Select
+              options={[
+                { value: "manual_upload", label: "manual_upload" },
+                { value: "external_registry", label: "external_registry" }
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="source_uri" className="wide-form-item">
+            <Input placeholder="上传文件或外部镜像 URI" />
+          </Form.Item>
+          <Form.Item name="architecture" initialValue="amd64" className="inline-form-item">
+            <Input placeholder="架构" />
+          </Form.Item>
+          <Form.Item name="risk_level" initialValue="low" className="inline-form-item">
+            <Select
+              options={[
+                { value: "low", label: "low" },
+                { value: "medium", label: "medium" },
+                { value: "high", label: "high" }
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="status" initialValue="draft" className="inline-form-item">
+            <Select
+              options={[
+                { value: "draft", label: "draft" },
+                { value: "active", label: "active" },
+                { value: "disabled", label: "disabled" }
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="description" className="wide-form-item">
+            <Input placeholder="描述" />
+          </Form.Item>
+          <Form.Item name="metadata" className="wide-form-item">
+            <Input placeholder="metadata JSON" />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" icon={<PlusOutlined />}>
+              登记镜像
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
+      <Table<SandboxImage>
+        size="small"
+        rowKey="id"
+        loading={loading}
+        dataSource={images}
+        columns={[
+          { title: "镜像", render: (_, row) => `${row.name}:${row.version}` },
+          { title: "来源", dataIndex: "source_type" },
+          { title: "URI", dataIndex: "source_uri", ellipsis: true, render: valueOrDash },
+          { title: "架构", dataIndex: "architecture" },
+          { title: "风险", dataIndex: "risk_level", render: (value: string) => <StatusTag value={value} /> },
+          { title: "状态", dataIndex: "status", render: (value: string) => <StatusTag value={value} /> },
+          { title: "更新时间", dataIndex: "updated_at", render: formatTime },
+          {
+            title: "操作",
+            width: 116,
+            render: (_, row) => (
+              <Button size="small" icon={<SyncOutlined />} onClick={() => void syncImage(row.id)}>
+                分发
+              </Button>
+            )
+          }
+        ]}
+      />
+      <Table<ImageDistribution>
+        size="small"
+        rowKey="id"
+        loading={loading}
+        dataSource={distributions}
+        columns={[
+          { title: "Image ID", dataIndex: "image_id", ellipsis: true },
+          { title: "集群", dataIndex: "runtime_backend_id", ellipsis: true },
+          { title: "目标", dataIndex: "target_ref", ellipsis: true, render: valueOrDash },
+          { title: "状态", dataIndex: "status", render: (value: string) => <StatusTag value={value} /> },
+          { title: "重试", dataIndex: "retry_count", width: 72 },
+          { title: "同步时间", dataIndex: "last_synced_at", render: formatTime },
+          { title: "错误", dataIndex: "last_error", ellipsis: true, render: valueOrDash }
+        ]}
+      />
+    </Space>
+  );
+}
+
 function QuotasPage({ auth }: { auth: AuthState }) {
   const [items, setItems] = useState<QuotaRule[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1226,8 +1647,8 @@ function useLocalStorage(key: string, initialValue: string) {
 
 function statusColor(value: string) {
   const normalized = value.toLowerCase();
-  if (["active", "healthy", "running"].includes(normalized)) return "green";
-  if (["pending", "unknown", "paused", "draining"].includes(normalized)) return "gold";
+  if (["active", "available", "deployed", "healthy", "low", "running"].includes(normalized)) return "green";
+  if (["draft", "medium", "pending", "prechecking", "unknown", "paused", "draining"].includes(normalized)) return "gold";
   if (["disabled", "revoked", "deleted", "stopped"].includes(normalized)) return "default";
   return "red";
 }
@@ -1283,4 +1704,23 @@ function formValuesFromQuota(rule: QuotaRule) {
     allowed_runtime_profile_ids: rule.allowed_runtime_profile_ids?.join(","),
     allowed_image_patterns: rule.allowed_image_patterns?.join(",")
   };
+}
+
+function formValuesFromCluster(cluster: RuntimeBackend) {
+  return {
+    ...cluster,
+    id: cluster.id,
+    metadata: cluster.metadata ? JSON.stringify(cluster.metadata) : undefined
+  };
+}
+
+function parseJsonObject(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    message.warning("JSON 字段格式无效，已忽略");
+    return null;
+  }
 }

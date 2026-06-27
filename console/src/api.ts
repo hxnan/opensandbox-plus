@@ -76,11 +76,70 @@ export type RuntimeBackend = {
   kind: string;
   status: string;
   health_status: string;
+  provider?: string | null;
+  external_cluster_id?: string | null;
+  namespace?: string | null;
+  registry_url?: string | null;
+  kubeconfig_secret_ref?: string | null;
   opensandbox_base_url: string;
+  api_key_env?: string;
   weight: number;
+  capabilities?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   running_sandboxes?: number;
   last_checked_at?: string | null;
   last_error?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type AckDeployment = {
+  id: string;
+  runtime_backend_id?: string | null;
+  aliyun_cluster_id: string;
+  region: string;
+  namespace: string;
+  vpc_id?: string | null;
+  registry_url?: string | null;
+  kubeconfig_secret_ref?: string | null;
+  status: string;
+  precheck_payload?: Record<string, unknown> | null;
+  deployment_payload?: Record<string, unknown> | null;
+  last_error?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SandboxImage = {
+  id: string;
+  name: string;
+  version: string;
+  source_type: "manual_upload" | "external_registry";
+  source_uri?: string | null;
+  architecture: string;
+  runtime_profile_id?: string | null;
+  risk_level: "low" | "medium" | "high";
+  status: string;
+  description?: string | null;
+  created_by_subject_id?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ImageDistribution = {
+  id: string;
+  image_id: string;
+  runtime_backend_id: string;
+  registry_url?: string | null;
+  target_ref?: string | null;
+  status: string;
+  retry_count: number;
+  last_error?: string | null;
+  last_synced_at?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
 };
 
 export type PlatformStatus = {

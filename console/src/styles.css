@@ -26,12 +26,17 @@ body {
 }
 
 .brand {
-  height: 56px;
+  height: 88px;
   display: flex;
   align-items: center;
-  padding: 0 20px;
-  font-weight: 700;
-  letter-spacing: 0;
+  padding: 12px 18px;
+}
+
+.brand-logo {
+  display: block;
+  width: 100%;
+  max-width: 196px;
+  height: auto;
 }
 
 .topbar {
@@ -123,6 +128,15 @@ body {
     min-width: 0 !important;
     border-right: 0;
     border-bottom: 1px solid #e7e9ee;
+  }
+
+  .brand {
+    height: 72px;
+    padding: 10px 16px;
+  }
+
+  .brand-logo {
+    max-width: 220px;
   }
 
   .topbar {

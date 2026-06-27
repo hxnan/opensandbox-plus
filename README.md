@@ -27,6 +27,8 @@ The commit/PR preparation note is in `docs/MVP提交说明.md`.
 
 The enterprise production-readiness roadmap is in `docs/企业级生产就绪演进路线.md`.
 
+The next-stage implementation log is in `docs/下一阶段实施记录.md`.
+
 ## Local Skeleton Checks
 
 ```powershell

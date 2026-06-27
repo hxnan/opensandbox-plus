@@ -1,0 +1,100 @@
+<svg width="1942" height="809" viewBox="0 0 1942 809" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">OpenSandbox Plus logo</title>
+  <desc id="desc">OpenSandbox Plus wordmark with an open cloud, a sandbox hexagon cluster, and three compact keys for multi-credential access.</desc>
+  <rect width="1942" height="809" fill="#ffffff"/>
+
+  <defs>
+    <linearGradient id="cloudStroke" x1="148" y1="365" x2="660" y2="365" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B63E5"/>
+      <stop offset="0.58" stop-color="#0E5DE4"/>
+      <stop offset="1" stop-color="#075FF0"/>
+    </linearGradient>
+    <linearGradient id="centerHex" x1="386" y1="357" x2="428" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0D6BFA"/>
+      <stop offset="1" stop-color="#0751D9"/>
+    </linearGradient>
+    <linearGradient id="plusBlue" x1="1590" y1="372" x2="1824" y2="503" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B63F5"/>
+      <stop offset="1" stop-color="#0759DD"/>
+    </linearGradient>
+    <linearGradient id="darkInk" x1="710" y1="372" x2="1568" y2="504" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#031426"/>
+      <stop offset="1" stop-color="#061A2E"/>
+    </linearGradient>
+    <linearGradient id="darkHex" x1="388" y1="273" x2="503" y2="450" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#031324"/>
+      <stop offset="1" stop-color="#061B31"/>
+    </linearGradient>
+    <filter id="softShadow" x="-12%" y="-20%" width="124%" height="145%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="#0B2035" flood-opacity="0.11"/>
+    </filter>
+    <filter id="lightTextShadow" x="-3%" y="-12%" width="106%" height="130%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.4" flood-color="#0B1A2C" flood-opacity="0.08"/>
+    </filter>
+    <style>
+      .wordmark {
+        font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+        font-size: 129px;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+    </style>
+  </defs>
+
+  <g id="mark" filter="url(#softShadow)" shape-rendering="geometricPrecision">
+    <path
+      d="M257 518H224C185 518 154 489 154 449C154 412 181 386 218 386C218 339 257 305 305 305C313 252 359 220 407 220C459 220 504 258 515 305C560 305 594 340 594 386C631 390 656 421 656 457C656 491 628 518 591 518H555"
+      stroke="url(#cloudStroke)"
+      stroke-width="14"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <g id="network" stroke="#0A9698" stroke-width="5" stroke-linecap="butt">
+      <path d="M351 335L386 315"/>
+      <path d="M406 322V339"/>
+      <path d="M426 315L461 335"/>
+      <path d="M325 382V401"/>
+      <path d="M487 382V401"/>
+      <path d="M351 449L387 469"/>
+      <path d="M406 447V481"/>
+      <path d="M426 469L461 449"/>
+    </g>
+
+    <g id="outer-hexagons" fill="url(#darkHex)">
+      <path d="M405 273L422 283V301L405 311L388 301V283L405 273Z"/>
+      <path d="M325 333L342 343V361L325 371L308 361V343L325 333Z"/>
+      <path d="M487 333L504 343V361L487 371L470 361V343L487 333Z"/>
+      <path d="M325 412L342 422V441L325 451L308 441V422L325 412Z"/>
+      <path d="M487 412L504 422V441L487 451L470 441V422L487 412Z"/>
+    </g>
+
+    <path id="center-hexagon" d="M406 350L443 372V413L406 435L368 413V372L406 350Z" fill="url(#centerHex)"/>
+
+    <g id="keys" stroke="#087F82" stroke-width="7" stroke-linecap="square" stroke-linejoin="miter">
+      <g transform="translate(319 512)">
+        <circle cx="0" cy="0" r="15" fill="#ffffff"/>
+        <path d="M0 15V45"/>
+        <path d="M0 32H12"/>
+        <path d="M0 44H9"/>
+      </g>
+      <g transform="translate(405 512)">
+        <circle cx="0" cy="0" r="15" fill="#ffffff"/>
+        <path d="M0 15V45"/>
+        <path d="M0 32H12"/>
+        <path d="M0 44H9"/>
+      </g>
+      <g transform="translate(493 512)">
+        <circle cx="0" cy="0" r="15" fill="#ffffff"/>
+        <path d="M0 15V45"/>
+        <path d="M0 32H12"/>
+        <path d="M0 44H9"/>
+      </g>
+    </g>
+  </g>
+
+  <g id="wordmark" filter="url(#lightTextShadow)">
+    <text class="wordmark" x="0" y="470" transform="translate(709 0) scale(1.006 1)" fill="url(#darkInk)">OpenSandbox</text>
+    <text class="wordmark" x="0" y="473" transform="translate(1588 0) scale(0.93 1)" fill="url(#plusBlue)">Plus</text>
+  </g>
+</svg>

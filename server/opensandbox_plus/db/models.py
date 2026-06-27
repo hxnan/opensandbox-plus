@@ -94,12 +94,83 @@ class RuntimeBackend(Base, TimestampMixin):
     kind: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(Text, server_default="active", nullable=False)
     health_status: Mapped[str] = mapped_column(Text, server_default="unknown", nullable=False)
+    provider: Mapped[str | None] = mapped_column(Text)
+    external_cluster_id: Mapped[str | None] = mapped_column(Text)
+    namespace: Mapped[str | None] = mapped_column(Text)
+    registry_url: Mapped[str | None] = mapped_column(Text)
+    kubeconfig_secret_ref: Mapped[str | None] = mapped_column(Text)
     opensandbox_base_url: Mapped[str] = mapped_column(Text, nullable=False)
     api_key_env: Mapped[str] = mapped_column(Text, nullable=False)
     weight: Mapped[int] = mapped_column(Integer, server_default="100", nullable=False)
     capabilities: Mapped[dict] = mapped_column(JSONB, server_default="{}", nullable=False)
     metadata_: Mapped[dict] = mapped_column("metadata", JSONB, server_default="{}", nullable=False)
     last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+
+class SandboxImage(Base, TimestampMixin):
+    __tablename__ = "sandbox_images"
+    __table_args__ = (
+        CheckConstraint("source_type in ('manual_upload', 'external_registry')"),
+        CheckConstraint("risk_level in ('low', 'medium', 'high')"),
+        CheckConstraint("status in ('draft', 'active', 'disabled')"),
+        UniqueConstraint("name", "version", "architecture", name="uq_sandbox_image_version_arch"),
+    )
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    version: Mapped[str] = mapped_column(Text, nullable=False)
+    source_type: Mapped[str] = mapped_column(Text, nullable=False)
+    source_uri: Mapped[str | None] = mapped_column(Text)
+    architecture: Mapped[str] = mapped_column(Text, server_default="amd64", nullable=False)
+    runtime_profile_id: Mapped[str | None] = mapped_column(ForeignKey("runtime_profiles.id"))
+    risk_level: Mapped[str] = mapped_column(Text, server_default="low", nullable=False)
+    status: Mapped[str] = mapped_column(Text, server_default="draft", nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    created_by_subject_id: Mapped[str | None] = mapped_column(Text)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, server_default="{}", nullable=False)
+
+
+class ImageDistribution(Base, TimestampMixin):
+    __tablename__ = "image_distributions"
+    __table_args__ = (
+        CheckConstraint("status in ('pending', 'uploading', 'available', 'failed', 'disabled')"),
+        CheckConstraint("retry_count >= 0"),
+        UniqueConstraint("image_id", "runtime_backend_id", name="uq_image_distribution_backend"),
+    )
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    image_id: Mapped[str] = mapped_column(ForeignKey("sandbox_images.id"))
+    runtime_backend_id: Mapped[str] = mapped_column(ForeignKey("runtime_backends.id"))
+    registry_url: Mapped[str | None] = mapped_column(Text)
+    target_ref: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, server_default="pending", nullable=False)
+    retry_count: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
+    last_error: Mapped[str | None] = mapped_column(Text)
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, server_default="{}", nullable=False)
+
+
+class AckClusterDeployment(Base, TimestampMixin):
+    __tablename__ = "ack_cluster_deployments"
+    __table_args__ = (
+        CheckConstraint(
+            "status in ('draft', 'prechecking', 'ready', 'deploying', 'deployed', "
+            "'failed', 'disabled')"
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    runtime_backend_id: Mapped[str | None] = mapped_column(ForeignKey("runtime_backends.id"))
+    aliyun_cluster_id: Mapped[str] = mapped_column(Text, nullable=False)
+    region: Mapped[str] = mapped_column(Text, nullable=False)
+    namespace: Mapped[str] = mapped_column(Text, server_default="opensandbox", nullable=False)
+    vpc_id: Mapped[str | None] = mapped_column(Text)
+    registry_url: Mapped[str | None] = mapped_column(Text)
+    kubeconfig_secret_ref: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, server_default="draft", nullable=False)
+    precheck_payload: Mapped[dict | None] = mapped_column(JSONB)
+    deployment_payload: Mapped[dict | None] = mapped_column(JSONB)
     last_error: Mapped[str | None] = mapped_column(Text)
 
 
