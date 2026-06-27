@@ -15,6 +15,15 @@
 
 对 Agent 开放的沙箱 API 与 OpenSandbox 原生 API 保持兼容。差异只在认证模型：OpenSandbox 原生部署通常是整个 server 共用一个 key；OpenSandbox Plus 改为每个 Agent 用户可申请自己的云沙箱 key，服务端再用内部 server key 转发到 OpenSandbox。
 
+## 下一阶段关键需求优先级
+
+| 优先级 | 关键需求 | 下一步目标 |
+| --- | --- | --- |
+| P0 | 阿里云 ACK/K8s 集群接入与 OpenSandbox 套件部署 | 无缝接入阿里云服务的 K8s 集群，完成环境预检，一键部署完整 OpenSandbox 服务套件，并自动纳管 |
+| P0 | 多 OpenSandbox 集群管理 | 支持多集群注册、健康检查、容量状态、调度策略和故障切换 |
+| P0 | OpenSandbox 镜像管理与分发 | 支持手动上传镜像，上传完成后自动推送到各 OpenSandbox 集群镜像仓库，并展示同步状态 |
+| P1 | 项目大屏首页与文生图宣传资产 | 增加介绍和推销 OpenSandbox Plus 的首页，结合文生图生成背景图和宣传图 |
+
 ## 本地部署
 
 当前本地部署使用 docker-compose：
