@@ -185,6 +185,15 @@ body {
   margin: 0;
 }
 
+.table-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.full-width {
+  width: 100%;
+}
+
 .inline-form-item {
   min-width: 180px;
 }

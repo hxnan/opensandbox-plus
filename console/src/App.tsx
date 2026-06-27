@@ -88,17 +88,16 @@ type ViewKey =
   | "sandboxes"
   | "platform"
   | "clusters"
+  | "ackDeployments"
   | "images"
   | "quotas"
   | "audit";
 
 type AuthState = {
   token: string;
-  manualToken: string;
   cloudKey: string;
   oidcSession: OidcSession | null;
-  tokenSource: "oidc" | "manual" | "none";
-  setToken: (value: string) => void;
+  tokenSource: "oidc" | "none";
   setCloudKey: (value: string) => void;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -116,7 +115,15 @@ const consoleMenuItems: MenuProps["items"] = [
   { key: "users", icon: <UserOutlined />, label: "用户" },
   { key: "sandboxes", icon: <CloudServerOutlined />, label: "沙箱" },
   { key: "platform", icon: <SafetyCertificateOutlined />, label: "平台" },
-  { key: "clusters", icon: <CloudServerOutlined />, label: "集群" },
+  {
+    key: "clusterManagement",
+    icon: <CloudServerOutlined />,
+    label: "集群",
+    children: [
+      { key: "clusters", label: "OpenSandbox 集群" },
+      { key: "ackDeployments", label: "ACK/K8s 接入" }
+    ]
+  },
   { key: "images", icon: <SyncOutlined />, label: "镜像" },
   { key: "quotas", icon: <SyncOutlined />, label: "配额" },
   { key: "audit", icon: <AuditOutlined />, label: "审计" }
@@ -124,9 +131,12 @@ const consoleMenuItems: MenuProps["items"] = [
 
 export default function App() {
   const [view, setView] = useState<ViewKey>("home");
-  const [manualToken, setManualToken] = useLocalStorage("osb-plus-console-token", "");
   const [cloudKey, setCloudKey] = useLocalStorage("osb-plus-cloud-key", "");
   const [oidcSession, setOidcSession] = useState<OidcSession | null>(null);
+
+  useEffect(() => {
+    localStorage.removeItem("osb-plus-console-token");
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -172,21 +182,15 @@ export default function App() {
     setOidcSession(null);
   }, []);
 
-  const token = manualToken || oidcSession?.accessToken || "";
-  const tokenSource: AuthState["tokenSource"] = manualToken
-    ? "manual"
-    : oidcSession?.accessToken
-      ? "oidc"
-      : "none";
+  const token = oidcSession?.accessToken || "";
+  const tokenSource: AuthState["tokenSource"] = oidcSession?.accessToken ? "oidc" : "none";
 
   const auth = useMemo(
     () => ({
       token,
-      manualToken,
       cloudKey,
       oidcSession,
       tokenSource,
-      setToken: setManualToken,
       setCloudKey,
       signIn,
       signOut,
@@ -194,11 +198,9 @@ export default function App() {
     }),
     [
       token,
-      manualToken,
       cloudKey,
       oidcSession,
       tokenSource,
-      setManualToken,
       setCloudKey,
       signIn,
       signOut,
@@ -223,6 +225,7 @@ export default function App() {
         <Menu
           mode="inline"
           selectedKeys={[view]}
+          defaultOpenKeys={["clusterManagement"]}
           items={menuItems}
           onClick={(item) => setView(item.key as ViewKey)}
         />
@@ -248,8 +251,8 @@ function AuthToolbar({ auth }: { auth: AuthState }) {
 
   return (
     <Space className="auth-toolbar" size={8} wrap>
-      <Tag color={auth.tokenSource === "oidc" ? "green" : auth.tokenSource === "manual" ? "gold" : "default"}>
-        {auth.tokenSource === "oidc" ? profileName || "OIDC" : auth.tokenSource === "manual" ? "手动 token" : "未登录"}
+      <Tag color={auth.tokenSource === "oidc" ? "green" : "default"}>
+        {auth.tokenSource === "oidc" ? profileName || "OIDC" : "未登录"}
       </Tag>
       <Button size="small" icon={<LoginOutlined />} onClick={() => void auth.signIn()}>
         登录
@@ -262,25 +265,10 @@ function AuthToolbar({ auth }: { auth: AuthState }) {
       >
         退出
       </Button>
-      <Input.Password
-        size="small"
-        className="token-input"
-        placeholder="Bearer token override"
-        value={auth.manualToken}
-        onChange={(event) => auth.setToken(event.target.value)}
-      />
-      <Input.Password
-        size="small"
-        className="token-input"
-        placeholder="Cloud sandbox key"
-        value={auth.cloudKey}
-        onChange={(event) => auth.setCloudKey(event.target.value)}
-      />
       <Button
         size="small"
         icon={<DeleteOutlined />}
         onClick={() => {
-          auth.setToken("");
           auth.setCloudKey("");
           void auth.forgetOidcSession();
         }}
@@ -309,7 +297,9 @@ function renderView(
     case "platform":
       return <PlatformPage auth={auth} />;
     case "clusters":
-      return <ClustersPage auth={auth} />;
+      return <ClustersPage auth={auth} activeTab="clusters" />;
+    case "ackDeployments":
+      return <ClustersPage auth={auth} activeTab="ack" />;
     case "images":
       return <ImagesPage auth={auth} />;
     case "quotas":
@@ -995,10 +985,12 @@ function PlatformPage({ auth }: { auth: AuthState }) {
   );
 }
 
-function ClustersPage({ auth }: { auth: AuthState }) {
+function ClustersPage({ auth, activeTab }: { auth: AuthState; activeTab: "clusters" | "ack" }) {
   const [clusters, setClusters] = useState<RuntimeBackend[]>([]);
   const [ackDeployments, setAckDeployments] = useState<AckDeployment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [clusterModalOpen, setClusterModalOpen] = useState(false);
+  const [ackModalOpen, setAckModalOpen] = useState(false);
   const [clusterForm] = Form.useForm();
   const [ackForm] = Form.useForm();
 
@@ -1055,6 +1047,7 @@ function ClustersPage({ auth }: { auth: AuthState }) {
         }
       });
       clusterForm.resetFields();
+      setClusterModalOpen(false);
       await load();
     } catch (err) {
       message.error(errorText(err));
@@ -1079,6 +1072,7 @@ function ClustersPage({ auth }: { auth: AuthState }) {
         }
       });
       ackForm.resetFields();
+      setAckModalOpen(false);
       await load();
     } catch (err) {
       message.error(errorText(err));
@@ -1105,152 +1099,243 @@ function ClustersPage({ auth }: { auth: AuthState }) {
 
   return (
     <Space direction="vertical" size={16} className="stack">
-      <SectionHeader title="OpenSandbox 集群" onRefresh={load} loading={loading} />
-      <Card size="small" title="注册 / 更新集群">
-        <Form form={clusterForm} layout="inline" onFinish={saveCluster}>
-          <Form.Item name="id" className="inline-form-item">
-            <Input placeholder="集群 ID，可选" />
-          </Form.Item>
-          <Form.Item name="name" rules={[{ required: true }]} className="inline-form-item">
-            <Input placeholder="名称" />
-          </Form.Item>
-          <Form.Item name="kind" initialValue="kubernetes" className="inline-form-item">
-            <Select
-              options={[
-                { value: "kubernetes", label: "kubernetes" },
-                { value: "docker", label: "docker" },
-                { value: "remote", label: "remote" }
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="provider" initialValue="aliyun_ack" className="inline-form-item">
-            <Input placeholder="Provider" />
-          </Form.Item>
-          <Form.Item name="external_cluster_id" className="inline-form-item">
-            <Input placeholder="ACK/K8s 集群 ID" />
-          </Form.Item>
-          <Form.Item name="region" className="inline-form-item">
-            <Input placeholder="地域" />
-          </Form.Item>
-          <Form.Item name="namespace" initialValue="opensandbox" className="inline-form-item">
-            <Input placeholder="命名空间" />
-          </Form.Item>
-          <Form.Item name="registry_url" className="wide-form-item">
-            <Input placeholder="镜像仓库地址" />
-          </Form.Item>
-          <Form.Item name="kubeconfig_secret_ref" className="wide-form-item">
-            <Input placeholder="kubeconfig secret ref" />
-          </Form.Item>
-          <Form.Item
-            name="opensandbox_base_url"
-            rules={[{ required: true }]}
-            className="wide-form-item"
-          >
-            <Input placeholder="OpenSandbox URL" />
-          </Form.Item>
-          <Form.Item name="api_key_env" rules={[{ required: true }]} className="inline-form-item">
-            <Input placeholder="API key env" />
-          </Form.Item>
-          <Form.Item name="weight" initialValue={100} className="inline-form-item">
-            <InputNumber min={0} placeholder="权重" />
-          </Form.Item>
-          <Form.Item name="metadata" className="wide-form-item">
-            <Input placeholder='metadata JSON，例如 {"tier":"prod"}' />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" icon={<PlusOutlined />}>
-              保存集群
+      {activeTab === "clusters" ? (
+        <>
+          <SectionHeader title="OpenSandbox 集群" onRefresh={load} loading={loading} />
+          <div className="table-actions">
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                clusterForm.resetFields();
+                clusterForm.setFieldsValue({
+                  kind: "kubernetes",
+                  provider: "aliyun_ack",
+                  namespace: "opensandbox",
+                  weight: 100
+                });
+                setClusterModalOpen(true);
+              }}
+            >
+              新建集群
             </Button>
-          </Form.Item>
-        </Form>
-      </Card>
-      <Table<RuntimeBackend>
-        size="small"
-        rowKey="id"
-        loading={loading}
-        dataSource={clusters}
-        columns={[
-          { title: "名称", dataIndex: "name" },
-          { title: "Provider", dataIndex: "provider", render: valueOrDash },
-          { title: "外部 ID", dataIndex: "external_cluster_id", ellipsis: true, render: valueOrDash },
-          { title: "地域", dataIndex: "region", render: valueOrDash },
-          { title: "命名空间", dataIndex: "namespace", render: valueOrDash },
-          { title: "仓库", dataIndex: "registry_url", ellipsis: true, render: valueOrDash },
-          { title: "权重", dataIndex: "weight", width: 80 },
-          { title: "状态", dataIndex: "status", width: 96, render: (value: string) => <StatusTag value={value} /> },
-          { title: "健康", dataIndex: "health_status", width: 104, render: (value: string) => <StatusTag value={value} /> },
-          {
-            title: "操作",
-            width: 88,
-            render: (_, row) => (
-              <Button size="small" onClick={() => clusterForm.setFieldsValue(formValuesFromCluster(row))}>
-                编辑
-              </Button>
-            )
-          }
-        ]}
-      />
-      <Card size="small" title="ACK/K8s 接入记录">
-        <Form form={ackForm} layout="inline" onFinish={saveAckDeployment}>
-          <Form.Item name="runtime_backend_id" className="inline-form-item">
-            <Select
-              allowClear
-              placeholder="纳管集群"
-              options={clusters.map((cluster) => ({ value: cluster.id, label: cluster.name }))}
-            />
-          </Form.Item>
-          <Form.Item name="aliyun_cluster_id" rules={[{ required: true }]} className="inline-form-item">
-            <Input placeholder="ACK 集群 ID" />
-          </Form.Item>
-          <Form.Item name="region" rules={[{ required: true }]} className="inline-form-item">
-            <Input placeholder="地域" />
-          </Form.Item>
-          <Form.Item name="namespace" initialValue="opensandbox" className="inline-form-item">
-            <Input placeholder="命名空间" />
-          </Form.Item>
-          <Form.Item name="vpc_id" className="inline-form-item">
-            <Input placeholder="VPC" />
-          </Form.Item>
-          <Form.Item name="registry_url" className="wide-form-item">
-            <Input placeholder="镜像仓库" />
-          </Form.Item>
-          <Form.Item name="kubeconfig_secret_ref" className="wide-form-item">
-            <Input placeholder="kubeconfig secret ref" />
-          </Form.Item>
-          <Form.Item name="precheck_payload" className="wide-form-item">
-            <Input placeholder="预检 JSON" />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" icon={<PlusOutlined />}>
+          </div>
+          <Table<RuntimeBackend>
+            size="small"
+            rowKey="id"
+            loading={loading}
+            dataSource={clusters}
+            columns={[
+              { title: "名称", dataIndex: "name" },
+              { title: "Provider", dataIndex: "provider", render: valueOrDash },
+              { title: "外部 ID", dataIndex: "external_cluster_id", ellipsis: true, render: valueOrDash },
+              { title: "地域", dataIndex: "region", render: valueOrDash },
+              { title: "命名空间", dataIndex: "namespace", render: valueOrDash },
+              { title: "仓库", dataIndex: "registry_url", ellipsis: true, render: valueOrDash },
+              { title: "权重", dataIndex: "weight", width: 80 },
+              { title: "状态", dataIndex: "status", width: 96, render: (value: string) => <StatusTag value={value} /> },
+              { title: "健康", dataIndex: "health_status", width: 104, render: (value: string) => <StatusTag value={value} /> },
+              {
+                title: "操作",
+                width: 88,
+                render: (_, row) => (
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      clusterForm.setFieldsValue(formValuesFromCluster(row));
+                      setClusterModalOpen(true);
+                    }}
+                  >
+                    编辑
+                  </Button>
+                )
+              }
+            ]}
+          />
+        </>
+      ) : (
+        <>
+          <SectionHeader title="ACK/K8s 接入记录" onRefresh={load} loading={loading} />
+          <div className="table-actions">
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                ackForm.resetFields();
+                ackForm.setFieldsValue({ namespace: "opensandbox" });
+                setAckModalOpen(true);
+              }}
+            >
               记录接入
             </Button>
-          </Form.Item>
+          </div>
+          <Table<AckDeployment>
+            size="small"
+            rowKey="id"
+            loading={loading}
+            dataSource={ackDeployments}
+            columns={[
+              { title: "ACK ID", dataIndex: "aliyun_cluster_id" },
+              { title: "纳管集群", dataIndex: "runtime_backend_id", render: valueOrDash },
+              { title: "地域", dataIndex: "region" },
+              { title: "命名空间", dataIndex: "namespace" },
+              { title: "状态", dataIndex: "status", render: (value: string) => <StatusTag value={value} /> },
+              { title: "错误", dataIndex: "last_error", ellipsis: true, render: valueOrDash },
+              { title: "更新时间", dataIndex: "updated_at", render: formatTime },
+              {
+                title: "操作",
+                width: 116,
+                render: (_, row) => (
+                  <Button size="small" icon={<SyncOutlined />} onClick={() => void generateAckPlan(row.id)}>
+                    生成计划
+                  </Button>
+                )
+              }
+            ]}
+          />
+        </>
+      )}
+      <Modal
+        title="保存 OpenSandbox 集群"
+        open={clusterModalOpen}
+        onCancel={() => setClusterModalOpen(false)}
+        onOk={() => clusterForm.submit()}
+        okText="保存集群"
+        width={760}
+      >
+        <Form form={clusterForm} layout="vertical" onFinish={saveCluster}>
+          <Row gutter={12}>
+            <Col xs={24} md={12}>
+              <Form.Item name="id" label="集群 ID">
+                <Input placeholder="新建时可留空" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="name" label="名称" rules={[{ required: true }]}>
+                <Input placeholder="名称" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="kind" label="类型" initialValue="kubernetes">
+                <Select
+                  options={[
+                    { value: "kubernetes", label: "kubernetes" },
+                    { value: "docker", label: "docker" },
+                    { value: "remote", label: "remote" }
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="provider" label="Provider" initialValue="aliyun_ack">
+                <Input placeholder="Provider" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="external_cluster_id" label="ACK/K8s 集群 ID">
+                <Input placeholder="ACK/K8s 集群 ID" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="region" label="地域">
+                <Input placeholder="地域" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="namespace" label="命名空间" initialValue="opensandbox">
+                <Input placeholder="命名空间" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="registry_url" label="镜像仓库地址">
+                <Input placeholder="镜像仓库地址" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="kubeconfig_secret_ref" label="kubeconfig secret ref">
+                <Input placeholder="kubeconfig secret ref" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="opensandbox_base_url" label="OpenSandbox URL" rules={[{ required: true }]}>
+                <Input placeholder="OpenSandbox URL" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="api_key_env" label="API key env" rules={[{ required: true }]}>
+                <Input placeholder="API key env" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="weight" label="权重" initialValue={100}>
+                <InputNumber min={0} className="full-width" />
+              </Form.Item>
+            </Col>
+            <Col span={24}>
+              <Form.Item name="metadata" label="metadata JSON">
+                <Input placeholder='例如 {"tier":"prod"}' />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
-      </Card>
-      <Table<AckDeployment>
-        size="small"
-        rowKey="id"
-        loading={loading}
-        dataSource={ackDeployments}
-        columns={[
-          { title: "ACK ID", dataIndex: "aliyun_cluster_id" },
-          { title: "纳管集群", dataIndex: "runtime_backend_id", render: valueOrDash },
-          { title: "地域", dataIndex: "region" },
-          { title: "命名空间", dataIndex: "namespace" },
-          { title: "状态", dataIndex: "status", render: (value: string) => <StatusTag value={value} /> },
-          { title: "错误", dataIndex: "last_error", ellipsis: true, render: valueOrDash },
-          { title: "更新时间", dataIndex: "updated_at", render: formatTime },
-          {
-            title: "操作",
-            width: 116,
-            render: (_, row) => (
-              <Button size="small" icon={<SyncOutlined />} onClick={() => void generateAckPlan(row.id)}>
-                生成计划
-              </Button>
-            )
-          }
-        ]}
-      />
+      </Modal>
+      <Modal
+        title="记录 ACK/K8s 接入"
+        open={ackModalOpen}
+        onCancel={() => setAckModalOpen(false)}
+        onOk={() => ackForm.submit()}
+        okText="记录接入"
+        width={760}
+      >
+        <Form form={ackForm} layout="vertical" onFinish={saveAckDeployment}>
+          <Row gutter={12}>
+            <Col xs={24} md={12}>
+              <Form.Item name="runtime_backend_id" label="纳管集群">
+                <Select
+                  allowClear
+                  placeholder="纳管集群"
+                  options={clusters.map((cluster) => ({ value: cluster.id, label: cluster.name }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="aliyun_cluster_id" label="ACK 集群 ID" rules={[{ required: true }]}>
+                <Input placeholder="ACK 集群 ID" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="region" label="地域" rules={[{ required: true }]}>
+                <Input placeholder="地域" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="namespace" label="命名空间" initialValue="opensandbox">
+                <Input placeholder="命名空间" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="vpc_id" label="VPC">
+                <Input placeholder="VPC" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="registry_url" label="镜像仓库">
+                <Input placeholder="镜像仓库" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="kubeconfig_secret_ref" label="kubeconfig secret ref">
+                <Input placeholder="kubeconfig secret ref" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="precheck_payload" label="预检 JSON">
+                <Input placeholder="预检 JSON" />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Modal>
     </Space>
   );
 }
