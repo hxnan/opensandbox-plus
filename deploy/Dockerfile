@@ -1,0 +1,32 @@
+FROM node:22-alpine AS console-build
+WORKDIR /app/console
+ARG VITE_API_BASE=
+ARG VITE_CASDOOR_AUTHORITY=http://localhost:8000
+ARG VITE_CASDOOR_CLIENT_ID=osb-console
+ARG VITE_CASDOOR_REDIRECT_URI=http://localhost:8080/
+ARG VITE_CASDOOR_POST_LOGOUT_REDIRECT_URI=http://localhost:8080/
+ARG VITE_CASDOOR_SCOPE="openid profile email"
+ENV VITE_API_BASE=${VITE_API_BASE}
+ENV VITE_CASDOOR_AUTHORITY=${VITE_CASDOOR_AUTHORITY}
+ENV VITE_CASDOOR_CLIENT_ID=${VITE_CASDOOR_CLIENT_ID}
+ENV VITE_CASDOOR_REDIRECT_URI=${VITE_CASDOOR_REDIRECT_URI}
+ENV VITE_CASDOOR_POST_LOGOUT_REDIRECT_URI=${VITE_CASDOOR_POST_LOGOUT_REDIRECT_URI}
+ENV VITE_CASDOOR_SCOPE=${VITE_CASDOOR_SCOPE}
+COPY console/package.json ./
+RUN npm install
+COPY console/ ./
+RUN npm run build
+
+FROM python:3.12-slim AS server
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+WORKDIR /app
+
+COPY server/ ./server/
+RUN pip install --no-cache-dir ./server
+
+COPY --from=console-build /app/console/dist /app/static/console
+ENV OSB_PLUS_CONSOLE_STATIC_DIR=/app/static/console
+
+EXPOSE 8080
+CMD ["python", "-m", "opensandbox_plus.entrypoint"]

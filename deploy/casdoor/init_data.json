@@ -1,0 +1,171 @@
+{
+  "organizations": [
+    {
+      "owner": "admin",
+      "name": "built-in",
+      "createdTime": "2026-01-01T00:00:00Z",
+      "displayName": "OpenSandbox Plus Local",
+      "websiteUrl": "http://localhost:8080",
+      "favicon": "https://cdn.casbin.org/img/casbin/favicon.ico",
+      "hasPrivilegeConsent": true,
+      "passwordType": "plain",
+      "passwordSalt": "",
+      "passwordOptions": ["AtLeast6"],
+      "countryCodes": ["US", "CN"],
+      "defaultApplication": "osb-console",
+      "tags": ["osb_agent_user", "osb_platform_admin"],
+      "languages": ["en", "zh"],
+      "initScore": 2000,
+      "enableSoftDeletion": false,
+      "isProfilePublic": true,
+      "disableSignin": false,
+      "isEnabled": true
+    }
+  ],
+  "applications": [
+    {
+      "owner": "admin",
+      "name": "osb-console",
+      "createdTime": "2026-01-01T00:00:00Z",
+      "displayName": "OpenSandbox Plus Console",
+      "logo": "https://cdn.casbin.org/img/casbin/favicon.ico",
+      "homepageUrl": "http://localhost:8080",
+      "description": "Local OpenSandbox Plus Console OIDC application",
+      "organization": "built-in",
+      "cert": "cert-built-in",
+      "enablePassword": true,
+      "enableSignUp": false,
+      "disableSignin": false,
+      "clientId": "osb-console",
+      "clientSecret": "",
+      "providers": [],
+      "signinMethods": [
+        {
+          "name": "Password",
+          "displayName": "Password",
+          "rule": "All"
+        },
+        {
+          "name": "Verification code",
+          "displayName": "Verification code",
+          "rule": "None"
+        },
+        {
+          "name": "WebAuthn",
+          "displayName": "WebAuthn",
+          "rule": "None"
+        },
+        {
+          "name": "Face ID",
+          "displayName": "Face ID",
+          "rule": "None"
+        }
+      ],
+      "signupItems": [
+        {
+          "name": "ID",
+          "visible": false,
+          "required": true,
+          "prompted": false,
+          "rule": "Random"
+        },
+        {
+          "name": "Username",
+          "visible": true,
+          "required": true,
+          "prompted": false,
+          "rule": "None"
+        },
+        {
+          "name": "Display name",
+          "visible": true,
+          "required": true,
+          "prompted": false,
+          "rule": "None"
+        },
+        {
+          "name": "Password",
+          "visible": true,
+          "required": true,
+          "prompted": false,
+          "rule": "None"
+        }
+      ],
+      "grantTypes": ["authorization_code", "refresh_token", "password"],
+      "redirectUris": ["http://localhost:8080/", "http://localhost:5173/"],
+      "tokenFormat": "JWT",
+      "tokenFields": ["owner", "name", "displayName", "email", "tag", "roles", "groups", "properties", "isForbidden"],
+      "expireInHours": 168,
+      "failedSigninLimit": 5,
+      "failedSigninFrozenTime": 15
+    }
+  ],
+  "roles": [
+    {
+      "owner": "built-in",
+      "name": "osb_agent_user",
+      "createdTime": "2026-01-01T00:00:00Z",
+      "displayName": "OpenSandbox Agent User",
+      "description": "Can issue personal cloud sandbox credentials and use cloud sandbox APIs",
+      "isEnabled": true,
+      "users": ["built-in/agent-demo", "built-in/admin-demo"],
+      "roles": []
+    },
+    {
+      "owner": "built-in",
+      "name": "osb_platform_admin",
+      "createdTime": "2026-01-01T00:00:00Z",
+      "displayName": "OpenSandbox Platform Admin",
+      "description": "Can access OpenSandbox Plus platform administration APIs",
+      "isEnabled": true,
+      "users": ["built-in/admin-demo"],
+      "roles": []
+    }
+  ],
+  "users": [
+    {
+      "owner": "built-in",
+      "name": "agent-demo",
+      "createdTime": "2026-01-01T00:00:00Z",
+      "type": "normal-user",
+      "password": "123456",
+      "passwordType": "plain",
+      "displayName": "Agent Demo",
+      "email": "agent-demo@example.local",
+      "emailVerified": true,
+      "tag": "osb_agent_user",
+      "properties": {
+        "osb_roles": "osb_agent_user"
+      },
+      "score": 2000,
+      "ranking": 1,
+      "isAdmin": false,
+      "isForbidden": false,
+      "isDeleted": false,
+      "signupApplication": "osb-console",
+      "groups": []
+    },
+    {
+      "owner": "built-in",
+      "name": "admin-demo",
+      "createdTime": "2026-01-01T00:00:00Z",
+      "type": "normal-user",
+      "password": "123456",
+      "passwordType": "plain",
+      "displayName": "Admin Demo",
+      "email": "admin-demo@example.local",
+      "emailVerified": true,
+      "tag": "osb_agent_user osb_platform_admin",
+      "properties": {
+        "osb_roles": "osb_agent_user osb_platform_admin"
+      },
+      "score": 2000,
+      "ranking": 2,
+      "isAdmin": true,
+      "isForbidden": false,
+      "isDeleted": false,
+      "signupApplication": "osb-console",
+      "groups": []
+    }
+  ]
+}

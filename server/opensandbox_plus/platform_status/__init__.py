@@ -1,0 +1,1 @@
+"""Management-plane platform status."""

@@ -1,0 +1,119 @@
+configs:
+  opensandbox-config:
+    content: |
+      [server]
+      host = "0.0.0.0"
+      port = 8090
+      api_key = "change-me-internal-opensandbox-key"
+
+      [log]
+      level = "INFO"
+
+      [runtime]
+      type = "docker"
+      execd_image = "sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/execd:v1.0.19"
+
+      [egress]
+      image = "opensandbox/egress:v1.1.2"
+
+      [docker]
+      network_mode = "bridge"
+      host_ip = "host.docker.internal"
+      pids_limit = 4096
+
+      [ingress]
+      mode = "direct"
+
+services:
+  opensandbox-plus:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        VITE_API_BASE: ""
+        VITE_CASDOOR_AUTHORITY: http://localhost:8000
+        VITE_CASDOOR_CLIENT_ID: osb-console
+        VITE_CASDOOR_REDIRECT_URI: http://localhost:8080/
+        VITE_CASDOOR_POST_LOGOUT_REDIRECT_URI: http://localhost:8080/
+        VITE_CASDOOR_SCOPE: "openid profile email"
+    environment:
+      OSB_PLUS_APP_ROLE: all
+      OSB_PLUS_PUBLIC_BASE_URL: http://localhost:8080
+      OSB_PLUS_DATABASE_URL: postgresql+asyncpg://opensandbox_plus:opensandbox_plus@postgres:5432/opensandbox_plus
+      OSB_PLUS_WAIT_FOR_DATABASE: "true"
+      OSB_PLUS_DB_WAIT_TIMEOUT_SECONDS: "90"
+      OSB_PLUS_RUN_MIGRATIONS: "true"
+      OSB_PLUS_ALEMBIC_INI: /app/server/alembic.ini
+      OSB_PLUS_REDIS_URL: redis://redis:6379/0
+      OSB_PLUS_CONSOLE_STATIC_DIR: /app/static/console
+      OSB_PLUS_CASDOOR_ISSUER: http://localhost:8000
+      OSB_PLUS_CASDOOR_AUDIENCE: osb-console
+      OSB_PLUS_CASDOOR_DISCOVERY_URL: http://casdoor:8000/.well-known/openid-configuration
+      OSB_PLUS_CASDOOR_JWKS_URL: http://casdoor:8000/.well-known/jwks
+      OSB_PLUS_CREDENTIAL_SECRET_PEPPER: change-me-credential-pepper
+      OSB_PLUS_CREDENTIAL_DEFAULT_EXPIRES_DAYS: "180"
+      OSB_PLUS_CREDENTIAL_MAX_EXPIRES_DAYS: "180"
+      OSB_PLUS_CREDENTIAL_MAX_KEYS_PER_USER: "10"
+      OSB_PLUS_OPENSANDBOX_DEFAULT_BACKEND_BASE_URL: http://opensandbox:8090
+      OSB_PLUS_OPENSANDBOX_INTERNAL_API_KEY: change-me-internal-opensandbox-key
+    depends_on:
+      - postgres
+      - redis
+      - opensandbox
+      - casdoor
+    ports:
+      - "8080:8080"
+    networks:
+      - public
+      - internal
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: opensandbox_plus
+      POSTGRES_USER: opensandbox_plus
+      POSTGRES_PASSWORD: opensandbox_plus
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - internal
+
+  casdoor:
+    image: casbin/casdoor:latest
+    environment:
+      RUNNING_IN_DOCKER: "true"
+    volumes:
+      - ./casdoor/app.conf:/conf/app.conf:ro
+      - ./casdoor/init_data.json:/init_data.json:ro
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    networks:
+      - public
+      - internal
+
+  opensandbox:
+    image: opensandbox/server:latest
+    configs:
+      - source: opensandbox-config
+        target: /etc/opensandbox/config.toml
+    environment:
+      SANDBOX_CONFIG_PATH: /etc/opensandbox/config.toml
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - internal
+
+networks:
+  public:
+  internal:
+
+volumes:
+  postgres-data:
