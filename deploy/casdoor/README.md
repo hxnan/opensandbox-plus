@@ -6,6 +6,10 @@ Casdoor supports startup data import through `init_data.json`; official docs say
 
 The local stack also mounts `deploy/casdoor/app.conf`. Casdoor reuses the compose PostgreSQL service and stores its own tables with the `casdoor_` prefix in the `opensandbox_plus` database.
 
+The login UI is configured to use `http://localhost:8080/casdoor-static` for logo,
+favicon, manifest, and language flag assets. This keeps the local sign-in page usable
+in restricted networks without reaching `cdn.casbin.org` or `cdn.casdoor.com`.
+
 Official references:
 
 - Data initialization: https://casdoor.ai/docs/deployment/data-initialization/

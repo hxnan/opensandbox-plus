@@ -33,6 +33,9 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["opensandbox_plus*"]
 
+[tool.setuptools.package-data]
+opensandbox_plus = ["static/brand/*.svg"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

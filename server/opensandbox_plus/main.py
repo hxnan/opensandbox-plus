@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from opensandbox_plus.api.casdoor_static import router as casdoor_static_router
 from opensandbox_plus.api.health import router as health_router
 from opensandbox_plus.api.management import router as management_router
 from opensandbox_plus.api.middleware import RequestIdMiddleware
@@ -50,6 +51,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     app.include_router(health_router)
+    app.include_router(casdoor_static_router)
 
     if settings.app_role in {"all", "api"}:
         app.include_router(management_router, prefix="/api/v1")
