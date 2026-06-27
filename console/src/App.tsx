@@ -62,7 +62,8 @@ import {
   sandboxExpiresAt,
   sandboxId,
   sandboxImage,
-  sandboxState
+  sandboxState,
+  uploadSandboxImage
 } from "./api";
 import {
   type OidcSession,
@@ -1155,6 +1156,8 @@ function ImagesPage({ auth }: { auth: AuthState }) {
   const [distributions, setDistributions] = useState<ImageDistribution[]>([]);
   const [loading, setLoading] = useState(false);
   const [imageForm] = Form.useForm();
+  const [uploadForm] = Form.useForm();
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
 
   const load = useCallback(async () => {
     if (!auth.token) return;
@@ -1182,6 +1185,30 @@ function ImagesPage({ auth }: { auth: AuthState }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function uploadImage(values: Record<string, unknown>) {
+    if (!uploadFile) {
+      message.warning("请选择镜像文件");
+      return;
+    }
+    try {
+      const result = await uploadSandboxImage(uploadFile, {
+        token: auth.token,
+        name: String(values.name || ""),
+        version: String(values.version || ""),
+        architecture: String(values.architecture || "amd64"),
+        risk_level: String(values.risk_level || "low"),
+        status: String(values.status || "active"),
+        description: typeof values.description === "string" ? values.description : undefined
+      });
+      message.success(`已上传并生成 ${result.distributions.length} 条分发计划`);
+      uploadForm.resetFields();
+      setUploadFile(null);
+      await load();
+    } catch (err) {
+      message.error(errorText(err));
+    }
+  }
 
   async function createImage(values: Record<string, unknown>) {
     try {
@@ -1226,6 +1253,52 @@ function ImagesPage({ auth }: { auth: AuthState }) {
   return (
     <Space direction="vertical" size={16} className="stack">
       <SectionHeader title="OpenSandbox 镜像" onRefresh={load} loading={loading} />
+      <Card size="small" title="上传镜像并自动分发">
+        <Form form={uploadForm} layout="inline" onFinish={uploadImage}>
+          <Form.Item name="name" rules={[{ required: true }]} className="inline-form-item">
+            <Input placeholder="镜像名称" />
+          </Form.Item>
+          <Form.Item name="version" rules={[{ required: true }]} className="inline-form-item">
+            <Input placeholder="版本" />
+          </Form.Item>
+          <Form.Item name="architecture" initialValue="amd64" className="inline-form-item">
+            <Input placeholder="架构" />
+          </Form.Item>
+          <Form.Item name="risk_level" initialValue="low" className="inline-form-item">
+            <Select
+              options={[
+                { value: "low", label: "low" },
+                { value: "medium", label: "medium" },
+                { value: "high", label: "high" }
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="status" initialValue="active" className="inline-form-item">
+            <Select
+              options={[
+                { value: "active", label: "active" },
+                { value: "draft", label: "draft" },
+                { value: "disabled", label: "disabled" }
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="description" className="wide-form-item">
+            <Input placeholder="描述" />
+          </Form.Item>
+          <Form.Item className="wide-form-item">
+            <input
+              className="file-input"
+              type="file"
+              onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
+            />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" icon={<SyncOutlined />} disabled={!uploadFile}>
+              上传并分发
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
       <Card size="small" title="登记镜像">
         <Form form={imageForm} layout="inline" onFinish={createImage}>
           <Form.Item name="name" rules={[{ required: true }]} className="inline-form-item">

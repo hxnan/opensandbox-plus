@@ -142,6 +142,11 @@ export type ImageDistribution = {
   updated_at: string;
 };
 
+export type SandboxImageUploadResult = {
+  image: SandboxImage;
+  distributions: ImageDistribution[];
+};
+
 export type PlatformStatus = {
   generated_at: string;
   backends: RuntimeBackend[];
@@ -248,6 +253,51 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   return data as T;
+}
+
+export async function uploadSandboxImage(
+  file: File,
+  options: {
+    token: string;
+    name: string;
+    version: string;
+    architecture?: string;
+    risk_level?: string;
+    status?: string;
+    description?: string;
+  }
+): Promise<SandboxImageUploadResult> {
+  const url = new URL(`${API_BASE}/api/v1/admin/images:upload`, window.location.origin);
+  url.searchParams.set("name", options.name);
+  url.searchParams.set("version", options.version);
+  url.searchParams.set("filename", file.name);
+  for (const key of ["architecture", "risk_level", "status", "description"] as const) {
+    const value = options[key];
+    if (value) url.searchParams.set(key, value);
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${options.token}`,
+      "content-type": "application/octet-stream",
+      "x-osb-filename": file.name
+    },
+    body: file
+  });
+  const text = await response.text();
+  const data = text ? safeJson(text) : null;
+
+  if (!response.ok) {
+    const detail = isRecord(data) ? data.detail : undefined;
+    const body = isRecord(detail) ? detail : isRecord(data) ? data : undefined;
+    const code = typeof body?.code === "string" ? body.code : undefined;
+    const message =
+      typeof body?.message === "string" ? body.message : `HTTP ${response.status}`;
+    throw new ApiError(response.status, message, code, body?.details);
+  }
+
+  return data as SandboxImageUploadResult;
 }
 
 export function sandboxId(record: SandboxRecord): string {

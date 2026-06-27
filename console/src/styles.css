@@ -94,6 +94,12 @@ body {
   min-width: 260px;
 }
 
+.file-input {
+  width: 260px;
+  max-width: 100%;
+  min-height: 32px;
+}
+
 .json-block {
   margin: 0;
   padding: 12px;

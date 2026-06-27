@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     credential_max_expires_days: int = 180
     credential_max_keys_per_user: int = 10
 
+    image_upload_dir: str = "var/opensandbox-plus/images"
+    image_upload_max_bytes: int = 5 * 1024 * 1024 * 1024
+
     opensandbox_default_backend_id: str = "backend_local"
     opensandbox_default_backend_name: str = "local-opensandbox"
     opensandbox_default_backend_base_url: str = "http://opensandbox:8090"

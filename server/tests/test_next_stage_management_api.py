@@ -24,6 +24,7 @@ class DummySession:
 @pytest.mark.asyncio
 async def test_next_stage_admin_cluster_image_and_ack_routes(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
 ) -> None:
     now = datetime(2026, 6, 27, tzinfo=UTC)
     admin = Principal(
@@ -79,7 +80,7 @@ async def test_next_stage_admin_cluster_image_and_ack_routes(
         return _image(now, **kwargs)
 
     async def fake_create_distribution_plan(session, *, image_id: str):
-        assert image_id == "img_test"
+        assert image_id == "img_test" or image_id.startswith("img_")
         return [
             SimpleNamespace(
                 id="dist_1",
@@ -103,7 +104,9 @@ async def test_next_stage_admin_cluster_image_and_ack_routes(
     monkeypatch.setattr(image_routes, "save_image", fake_save_image)
     monkeypatch.setattr(image_routes, "create_distribution_plan", fake_create_distribution_plan)
 
-    app = create_app(Settings(background_jobs_enabled=False))
+    app = create_app(
+        Settings(background_jobs_enabled=False, image_upload_dir=str(tmp_path))
+    )
     app.dependency_overrides[db_session.get_session] = fake_session
     app.dependency_overrides[dependencies.get_current_principal] = fake_current_principal
 
@@ -172,6 +175,19 @@ async def test_next_stage_admin_cluster_image_and_ack_routes(
         )
         assert distributions.status_code == 200
         assert distributions.json()[0]["runtime_backend_id"] == "cluster_ack"
+
+        upload = await client.post(
+            "/api/v1/admin/images:upload?name=node&version=20&filename=node-20.tar",
+            headers={
+                "Authorization": "Bearer admin-token",
+                "content-type": "application/octet-stream",
+            },
+            content=b"fake image archive",
+        )
+        assert upload.status_code == 200
+        assert upload.json()["image"]["name"] == "node"
+        assert upload.json()["distributions"][0]["status"] == "pending"
+        assert (tmp_path / upload.json()["image"]["id"] / "node-20.tar").exists()
 
 
 def _cluster(now: datetime, **kwargs):

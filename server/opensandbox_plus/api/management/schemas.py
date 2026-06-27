@@ -263,3 +263,8 @@ class ImageDistributionResponse(BaseModel):
     metadata: dict[str, Any]
     created_at: datetime
     updated_at: datetime
+
+
+class SandboxImageUploadResponse(BaseModel):
+    image: SandboxImageResponse
+    distributions: list[ImageDistributionResponse]
