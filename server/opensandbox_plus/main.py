@@ -16,6 +16,7 @@ from opensandbox_plus.api.middleware import RequestIdMiddleware
 from opensandbox_plus.api.native import router as native_router
 from opensandbox_plus.config import Settings, get_settings
 from opensandbox_plus.jobs.runner import JobRunner
+from opensandbox_plus.logging import configure_structured_logging
 
 
 @asynccontextmanager
@@ -35,6 +36,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
+    configure_structured_logging()
     app = FastAPI(
         title="OpenSandbox Plus",
         version="0.1.0",

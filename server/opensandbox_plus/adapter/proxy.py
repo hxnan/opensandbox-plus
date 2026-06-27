@@ -7,6 +7,7 @@ from fastapi import HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 
 from opensandbox_plus.auth.constants import SANDBOX_API_KEY_HEADER
+from opensandbox_plus.api.middleware import REQUEST_ID_HEADER
 from opensandbox_plus.config import Settings
 
 HOP_BY_HOP_HEADERS = {
@@ -39,12 +40,15 @@ async def proxy_http_to_opensandbox(
             detail={"code": "NOT_IMPLEMENTED", "message": "WebSocket proxy is not implemented yet"},
         )
 
-    client = httpx.AsyncClient(timeout=None)
+    client = httpx.AsyncClient(timeout=None, trust_env=False)
     headers = _filter_request_headers(
         request.headers,
         connection_header=request.headers.get("connection"),
     )
     headers[SANDBOX_API_KEY_HEADER] = settings.opensandbox_internal_api_key
+    request_id = getattr(request.state, "request_id", None)
+    if request_id:
+        headers[REQUEST_ID_HEADER] = request_id
     _inject_forwarded_headers(headers, request)
 
     target_url = settings.opensandbox_default_backend_base_url.rstrip("/") + backend_path

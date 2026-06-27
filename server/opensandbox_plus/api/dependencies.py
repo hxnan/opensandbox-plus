@@ -63,6 +63,7 @@ async def get_current_principal(
         )
 
     await upsert_user_identity(session, principal)
+    request.state.current_principal = principal
     return principal
 
 

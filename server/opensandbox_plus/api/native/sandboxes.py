@@ -53,7 +53,7 @@ async def _sandboxes_root(
     principal: CloudSandboxPrincipal,
     session: AsyncSession,
 ) -> Response:
-    client = OpenSandboxClient(request.app.state.settings)
+    client = _opensandbox_client(request)
     if request.method == "POST":
         request_payload = await _json_body(request)
         try:
@@ -197,7 +197,7 @@ async def _sandbox_by_id(
             error_code=_http_exception_code(exc),
         )
         raise
-    client = OpenSandboxClient(request.app.state.settings)
+    client = _opensandbox_client(request)
     try:
         response = await client.request(
             request.method,
@@ -409,7 +409,7 @@ async def _forward_owned_sandbox_request(
     *,
     include_body: bool = False,
 ):
-    client = OpenSandboxClient(request.app.state.settings)
+    client = _opensandbox_client(request)
     return await _send_backend_request(request, client, _backend_path(request, opensandbox_id), include_body)
 
 
@@ -460,6 +460,13 @@ def _backend_path(request: Request, sandbox_id: str | None = None) -> str:
     except (ValueError, IndexError):
         return path
     return "/".join(parts)
+
+
+def _opensandbox_client(request: Request) -> OpenSandboxClient:
+    return OpenSandboxClient(
+        request.app.state.settings,
+        request_id=getattr(request.state, "request_id", None),
+    )
 
 
 def _quota_http_error(exc: QuotaServiceError) -> HTTPException:

@@ -1,6 +1,7 @@
 import httpx
 import pytest
 
+from opensandbox_plus.api import middleware
 from opensandbox_plus.config import Settings
 from opensandbox_plus.main import create_app
 
@@ -32,6 +33,33 @@ async def test_health_endpoint_generates_request_id() -> None:
 
     assert response.status_code == 200
     assert response.headers["X-Request-ID"].startswith("req_")
+
+
+@pytest.mark.asyncio
+async def test_request_logging_includes_trace_fields(monkeypatch: pytest.MonkeyPatch) -> None:
+    logged_events = []
+
+    class CaptureLogger:
+        def info(self, event: str, **kwargs) -> None:
+            logged_events.append((event, kwargs))
+
+    monkeypatch.setattr(middleware, "logger", CaptureLogger())
+    app = create_app(Settings(background_jobs_enabled=False))
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/health", headers={"X-Request-ID": "req-log-test"})
+
+    assert response.status_code == 200
+    assert logged_events
+    event, fields = logged_events[-1]
+    assert event == "http.request.completed"
+    assert fields["request_id"] == "req-log-test"
+    assert fields["method"] == "GET"
+    assert fields["path"] == "/health"
+    assert fields["status_code"] == 200
+    assert fields["unhandled_error"] is False
+    assert isinstance(fields["duration_ms"], float)
 
 
 @pytest.mark.asyncio
